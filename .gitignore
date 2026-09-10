@@ -1,0 +1,8 @@
+node_modules
+dist
+.data
+.env*
+.vercel
+dados/
+backup-*.json
+dados-iniciais-*.json
