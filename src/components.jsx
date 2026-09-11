@@ -213,13 +213,14 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
     onChange([...itens, { id: uid(), grupo: 'Equipamentos', categoria: 'Eletrônico', codigo: '', descricao: '', unidade: 'PÇ', qtd: 1, custoUnit: 0, rob: 0, qtdComprada: 0, dataCompra: '', valorUnitPago: 0 }]);
 
   const totCusto = itens.reduce((s, i) => s + custoItem(i), 0);
+  const totRob = itens.reduce((s, i) => s + (Number(i.rob) || 0), 0);
   const totPago = itens.reduce((s, i) => s + pagoItem(i), 0);
   const grupos = [...new Set([...Object.values(GRUPOS), ...itens.map((i) => i.grupo).filter(Boolean)])];
 
   return (
     <fieldset disabled={!podeEditar}>
       <div className="tabela-wrap">
-        <table className="tabela-edit" style={{ minWidth: compras ? 1500 : 1100 }}>
+        <table className="tabela-edit" style={{ minWidth: compras ? 1620 : 1220 }}>
           <thead>
             <tr>
               <th style={{ width: 84 }}>Código</th>
@@ -230,6 +231,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
               <th className="num" style={{ width: 80 }}>Qtd</th>
               <th className="num" style={{ width: 110 }}>Custo unit.</th>
               <th className="num">Custo total</th>
+              <th className="num" style={{ width: 120 }}>Venda (ROB)</th>
               {compras && (
                 <>
                   <th className="num" style={{ width: 80 }}>Qtd comprada</th>
@@ -274,6 +276,9 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
                   <NumInput valor={i.custoUnit} onChange={(v) => set(i.id, 'custoUnit', v)} aria-label="Custo unitário" />
                 </td>
                 <td className="num">{moeda(custoItem(i))}</td>
+                <td>
+                  <NumInput valor={i.rob} onChange={(v) => set(i.id, 'rob', v)} aria-label="Venda (ROB)" />
+                </td>
                 {compras && (
                   <>
                     <td>
@@ -309,6 +314,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
                 {itens.length} itens
               </td>
               <td className="num">{moeda(totCusto)}</td>
+              <td className="num">{totRob ? moeda(totRob) : '—'}</td>
               {compras && (
                 <>
                   <td colSpan={3} />
