@@ -199,7 +199,7 @@ export function parseWorkbook(wb, fileName = '') {
     const desc = cols.descricao !== undefined ? row[cols.descricao] : null;
     const descStr = desc === null || desc === undefined ? '' : String(desc).trim();
     const joined = norm(row.slice(0, 8).join(' '));
-    if (/total geral|total da obra/.test(joined) || norm(row[cols.grupo]) === 'total') break;
+    if (/total geral|total da obra/.test(joined) || norm(row[cols.grupo]) === 'total' || norm(descStr) === 'total') break;
     if (!descStr || descStr === '-') {
       blankStreak++;
       if (blankStreak > 40) break;
@@ -220,7 +220,10 @@ export function parseWorkbook(wb, fileName = '') {
     const codigo = codigoRaw === null ? '' : String(codigoRaw).trim();
     const categoriaArq = cols.categoria !== undefined ? String(row[cols.categoria] || '').trim() : '';
     const qtdComprada = cols.qtdComprada !== undefined ? num(row[cols.qtdComprada]) : 0;
-    const valorUnitPago = cols.valorUnitPago !== undefined ? num(row[cols.valorUnitPago]) : 0;
+    const custoUnitFinal = custoUnit || (qtd ? custoTotal / qtd : 0);
+    // Se já foi lançada uma quantidade comprada mas a planilha não registrou o valor pago,
+    // assume o custo orçado como valor pago (o usuário ajusta depois se pagou diferente).
+    const valorUnitPago = cols.valorUnitPago !== undefined && num(row[cols.valorUnitPago]) ? num(row[cols.valorUnitPago]) : qtdComprada ? custoUnitFinal : 0;
     itens.push({
       id: uid(),
       grupo,
@@ -231,7 +234,7 @@ export function parseWorkbook(wb, fileName = '') {
       marca: cols.marca !== undefined ? String(row[cols.marca] ?? '').replace(/^\*$/, '').trim() : '',
       modelo: cols.modelo !== undefined ? String(row[cols.modelo] ?? '').replace(/^\*$/, '').trim() : '',
       qtd,
-      custoUnit: custoUnit || (qtd ? custoTotal / qtd : 0),
+      custoUnit: custoUnitFinal,
       rob: cols.rob !== undefined ? num(row[cols.rob]) : 0,
       qtdComprada,
       dataCompra: cols.dataCompra !== undefined ? toISODate(row[cols.dataCompra]) : '',
