@@ -28,9 +28,9 @@ export default function Painel() {
       if (!terc && !tercPago) return;
       t.orcado += terc;
       t.pago += tercPago;
-      t.cat['Terceiros'] = t.cat['Terceiros'] || { orcado: 0, pago: 0 };
-      t.cat['Terceiros'].orcado += terc;
-      t.cat['Terceiros'].pago += tercPago;
+      t.cat['M.O'] = t.cat['M.O'] || { orcado: 0, pago: 0 };
+      t.cat['M.O'].orcado += terc;
+      t.cat['M.O'].pago += tercPago;
     });
     return t;
   }, [d]);
