@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, navegar } from '../App.jsx';
-import { Campo, Icone, ItensTabela, Totais, Pill } from '../components.jsx';
+import { Campo, Icone, ItensTabela, Totais, Pill, NumInput } from '../components.jsx';
 import { totaisOrc, moeda, moeda0, pct, STATUS_ORC, exportarExcel, custoItem, pagoItem } from '../lib/util.js';
 
 export default function OrcamentoDetalhe({ id }) {
@@ -126,6 +126,9 @@ export default function OrcamentoDetalhe({ id }) {
             </Campo>
             <Campo rotulo="Comercial">
               <input value={o.comercial || ''} onChange={(e) => set('comercial', e.target.value)} />
+            </Campo>
+            <Campo rotulo="Venda ao cliente" dica="ROB, R$">
+              <NumInput valor={o.robArquivo} onChange={(v) => set('robArquivo', v)} />
             </Campo>
             <Campo rotulo="Elaborado por">
               <input value={o.elaboradoPor || ''} onChange={(e) => set('elaboradoPor', e.target.value)} />
