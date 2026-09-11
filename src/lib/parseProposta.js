@@ -13,7 +13,7 @@ export const GRUPOS = {
   8: 'Despesa_operacional',
 };
 
-export const CATEGORIAS = ['Infra/Eletrônico', 'M.O', 'Miscelâneas'];
+export const CATEGORIAS = ['Eletrônico', 'M.O', 'Miscelâneas'];
 
 const norm = (s) =>
   String(s ?? '')
@@ -159,8 +159,8 @@ function mapColumns(headerCells) {
 
 export function categoriaDoGrupo(grupo) {
   if (grupo === 'M.O') return 'M.O';
-  if (grupo === 'Despesa_operacional') return 'Miscelâneas';
-  return 'Infra/Eletrônico';
+  if (grupo === 'Despesa_operacional' || grupo === 'Infra_rede' || grupo === 'Infra_seca') return 'Miscelâneas';
+  return 'Eletrônico';
 }
 
 function detectGrupo(rawGrupo, classificacao, descricao) {
@@ -248,7 +248,7 @@ export function parseWorkbook(wb, fileName = '') {
       `A soma dos itens (${custoItens.toFixed(2)}) difere do "Custo Bruto Total" do arquivo (${info.custoBrutoArquivo.toFixed(2)}). Pode haver frete ou itens ocultos.`,
     );
   }
-  const semCodigo = itens.filter((i) => !i.codigo && i.categoria === 'Infra/Eletrônico').length;
+  const semCodigo = itens.filter((i) => !i.codigo && i.categoria === 'Eletrônico').length;
   if (semCodigo) warnings.push(`${semCodigo} item(ns) sem código cadastrado ("A Cadastrar"). Preencha o código para cruzar com levantamento e estoque.`);
   const semCusto = itens.filter((i) => !i.custoUnit).length;
   if (semCusto) warnings.push(`${semCusto} item(ns) sem custo unitário.`);

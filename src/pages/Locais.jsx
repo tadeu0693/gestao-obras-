@@ -272,7 +272,7 @@ function LocalEditor({ local, aoFechar }) {
     const o = orcsPO.find((x) => x.id === l.orcamentoId) || orcsPO[0];
     if (!o) return;
     const novos = o.itens
-      .filter((i) => i.categoria === 'Infra/Eletrônico')
+      .filter((i) => i.categoria === 'Eletrônico')
       .map((i) => ({ id: uid(), codigo: i.codigo, descricao: i.descricao, un: i.unidade, qtd: orcsPO.length === 1 && dados.locais.filter((x) => x.po === l.po).length <= 1 ? i.qtd : 0, obs: '' }));
     setL((x) => ({ ...x, levantamento: [...x.levantamento, ...novos] }));
   };

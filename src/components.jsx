@@ -208,7 +208,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
     );
   const remover = (id) => onChange(itens.filter((i) => i.id !== id));
   const adicionar = () =>
-    onChange([...itens, { id: uid(), grupo: 'Equipamentos', categoria: 'Infra/Eletrônico', codigo: '', descricao: '', unidade: 'PÇ', qtd: 1, custoUnit: 0, rob: 0, qtdComprada: 0, dataCompra: '', valorUnitPago: 0 }]);
+    onChange([...itens, { id: uid(), grupo: 'Equipamentos', categoria: 'Eletrônico', codigo: '', descricao: '', unidade: 'PÇ', qtd: 1, custoUnit: 0, rob: 0, qtdComprada: 0, dataCompra: '', valorUnitPago: 0 }]);
 
   const totCusto = itens.reduce((s, i) => s + custoItem(i), 0);
   const totPago = itens.reduce((s, i) => s + pagoItem(i), 0);

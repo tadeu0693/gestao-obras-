@@ -46,7 +46,7 @@ export function totaisOrc(o) {
     t.orcado += c;
     t.pago += p;
     t.rob += Number(i.rob) || 0;
-    const k = i.categoria || 'Infra/Eletrônico';
+    const k = i.categoria || 'Eletrônico';
     t.cat[k] = t.cat[k] || { orcado: 0, pago: 0 };
     t.cat[k].orcado += c;
     t.cat[k].pago += p;
@@ -123,7 +123,7 @@ export function validacaoPO(orcamentos, locais) {
     if (!r.obs && obs) r.obs = obs;
     return r;
   };
-  for (const o of orcamentos) for (const i of o.itens || []) if (i.codigo && i.categoria === 'Infra/Eletrônico') add(i.codigo, i.descricao, i.unidade).orcado += Number(i.qtd) || 0;
+  for (const o of orcamentos) for (const i of o.itens || []) if (i.codigo && i.categoria === 'Eletrônico') add(i.codigo, i.descricao, i.unidade).orcado += Number(i.qtd) || 0;
   for (const l of locais) for (const x of l.levantamento || []) add(x.codigo, x.descricao, x.un, x.obs).levantado += Number(x.qtd) || 0;
   return [...m.values()]
     .filter((r) => r.levantado > 0 || r.orcado > 0)
@@ -144,7 +144,7 @@ export function quantitativo(orcamentos, estoque) {
   const m = new Map();
   for (const o of orcamentos)
     for (const i of o.itens || []) {
-      if (i.categoria !== 'Infra/Eletrônico') continue;
+      if (i.categoria !== 'Eletrônico') continue;
       const k = i.codigo || `sem:${semAcento(i.descricao)}`;
       if (!m.has(k)) m.set(k, { codigo: i.codigo, descricao: i.descricao, grupo: i.grupo, un: i.unidade, porPO: {}, qtd: 0, custo: 0, comprada: 0, pago: 0, recebido: 0 });
       const r = m.get(k);
