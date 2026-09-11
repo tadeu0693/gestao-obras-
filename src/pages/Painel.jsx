@@ -22,6 +22,16 @@ export default function Painel() {
         t.cat[k].pago += v.pago;
       });
     });
+    d.locais.forEach((l) => {
+      const terc = Number(l.valorTerceiro) || 0;
+      const tercPago = Number(l.valorTerceiroPago) || 0;
+      if (!terc && !tercPago) return;
+      t.orcado += terc;
+      t.pago += tercPago;
+      t.cat['Terceiros'] = t.cat['Terceiros'] || { orcado: 0, pago: 0 };
+      t.cat['Terceiros'].orcado += terc;
+      t.cat['Terceiros'].pago += tercPago;
+    });
     return t;
   }, [d]);
 

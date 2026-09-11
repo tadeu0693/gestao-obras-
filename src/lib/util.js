@@ -72,7 +72,10 @@ export function agruparPOs(dados) {
   for (const l of dados.locais) {
     const k = chave(l.clienteId, l.po);
     if (!mapa.has(k)) mapa.set(k, { po: l.po || 'sem PO', clienteId: l.clienteId, orcamentos: [], locais: [], orcado: 0, pago: 0, rob: 0 });
-    mapa.get(k).locais.push(l);
+    const g = mapa.get(k);
+    g.locais.push(l);
+    g.orcado += Number(l.valorTerceiro) || 0;
+    g.pago += Number(l.valorTerceiroPago) || 0;
   }
   return [...mapa.values()].sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
 }
