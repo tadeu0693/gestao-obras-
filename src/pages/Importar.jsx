@@ -199,6 +199,7 @@ async function gravar(rsOriginal, dados, salvar) {
       moUnit: orc.itens.filter((i) => i.categoria === 'M.O').reduce((s, i) => s + custoItem(i), 0),
       miscUnit: orc.itens.filter((i) => i.categoria === 'Miscelâneas').reduce((s, i) => s + custoItem(i), 0),
       valorTerceiro: 0,
+      valorTerceiroPago: 0,
       cameras: contarCameras(orc.itens),
       postes: { qtd: 0, dataEntrega: '', horaEntrega: '', rota: '', sequencia: '' },
       levantamento: [],

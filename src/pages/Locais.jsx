@@ -21,6 +21,7 @@ const NOVO = (clienteId) => ({
   moUnit: 0,
   miscUnit: 0,
   valorTerceiro: 0,
+  valorTerceiroPago: 0,
   cameras: { bullet: 0, dome: 0, ptz: 0, radar: 0, sonofletor: 0 },
   postes: { qtd: 0, dataEntrega: '', horaEntrega: '', rota: '', sequencia: '' },
   levantamento: [],
@@ -97,6 +98,7 @@ export default function Locais({ abrirId }) {
         'M.O / Unidade': l.moUnit || 0,
         'Misc / Unidade': l.miscUnit || 0,
         'Valor Terceiro': l.valorTerceiro || 0,
+        'Valor Terceiro Pago': l.valorTerceiroPago || 0,
         Bullet: l.cameras?.bullet || 0,
         Dome: l.cameras?.dome || 0,
         PTZ: l.cameras?.ptz || 0,
@@ -369,8 +371,11 @@ function LocalEditor({ local, aoFechar }) {
             <Campo rotulo="Miscelâneas por unidade" dica="R$">
               <NumInput className="" valor={l.miscUnit} onChange={(v) => set('miscUnit', v)} />
             </Campo>
-            <Campo rotulo="Valor terceiro" dica="R$">
+            <Campo rotulo="Valor terceiro" dica="R$ fechado">
               <NumInput className="" valor={l.valorTerceiro} onChange={(v) => set('valorTerceiro', v)} />
+            </Campo>
+            <Campo rotulo="Valor terceiro pago" dica={`saldo ${moeda0((l.valorTerceiro || 0) - (l.valorTerceiroPago || 0))}`}>
+              <NumInput className="" valor={l.valorTerceiroPago} onChange={(v) => set('valorTerceiroPago', v)} />
             </Campo>
           </div>
         </section>
