@@ -146,6 +146,12 @@ select.status-sel { width: auto; padding: 4px 8px; font-size: 14px; }
 .tag.sobra { background: var(--amarelo-claro); color: #7a5b00; }
 .tag.ok { background: var(--verde-claro); color: var(--verde); }
 
+.lista-pendencias { display: flex; flex-direction: column; gap: 2px; }
+.linha-pendencia { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 8px; border-radius: 8px; cursor: pointer; }
+.linha-pendencia:hover { background: #f4f8f8; }
+.linha-pendencia > div:first-child { min-width: 0; flex: 1; }
+.linha-pendencia strong { font-weight: 600; }
+
 /* ---------- régua de consumo (elemento principal do painel) ---------- */
 .regua { margin: 6px 0 4px; }
 .regua-numeros { display: flex; flex-wrap: wrap; gap: 8px 44px; margin-bottom: 14px; }

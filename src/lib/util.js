@@ -186,6 +186,28 @@ export function consolidarOrcamentos(orcamentos) {
   return [...m.values()].sort((a, b) => String(a.descricao).localeCompare(String(b.descricao), 'pt-BR'));
 }
 
+// Painel de pendências: tudo que precisa de atenção agora
+export function pendencias(dados) {
+  const hoje = hojeISO();
+  const em30dias = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
+  const locaisParados = dados.locais.filter((l) => l.status === 'Não iniciada' || l.status === 'Pausada');
+
+  const orcamentosVencendo = dados.orcamentos
+    .filter((o) => o.vencimento && o.vencimento <= em30dias && !['Encerrado', 'Perdido'].includes(o.status))
+    .map((o) => ({ ...o, vencido: o.vencimento < hoje }))
+    .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+
+  const terceirosPendentes = dados.locais
+    .map((l) => ({ ...l, saldoTerceiro: (Number(l.valorTerceiro) || 0) - (Number(l.valorTerceiroPago) || 0) }))
+    .filter((l) => l.saldoTerceiro > 0.01)
+    .sort((a, b) => b.saldoTerceiro - a.saldoTerceiro);
+
+  const materiaisNaoRecebidos = quantitativo(dados.orcamentos, dados.estoque).filter((r) => r.comprada > 0 && r.recebido < r.comprada);
+
+  return { locaisParados, orcamentosVencendo, terceirosPendentes, materiaisNaoRecebidos };
+}
+
 // ---------- API ----------
 export async function api(caminho, { metodo = 'GET', corpo } = {}) {
   const r = await fetch(`/api/${caminho}`, {

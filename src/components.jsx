@@ -20,6 +20,7 @@ const P = {
   menu: 'M4 6h16M4 12h16M4 18h16',
   voltar: 'M15 5l-7 7 7 7',
   consolidado: 'M12 3L3 8l9 5 9-5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5',
+  pendencias: 'M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6zM10 19a2 2 0 0 0 4 0',
 };
 export function Icone({ nome, tam = 18 }) {
   return (

@@ -9,6 +9,7 @@ import Importar from './pages/Importar.jsx';
 import Locais from './pages/Locais.jsx';
 import Materiais from './pages/Materiais.jsx';
 import Consolidado from './pages/Consolidado.jsx';
+import Pendencias from './pages/Pendencias.jsx';
 import Estoque from './pages/Estoque.jsx';
 import Clientes from './pages/Clientes.jsx';
 import Config from './pages/Config.jsx';
@@ -20,6 +21,7 @@ const VAZIO = { clientes: [], orcamentos: [], locais: [], estoque: [] };
 
 const NAV = [
   ['painel', 'Painel', 'painel'],
+  ['pendencias', 'Pendências', 'pendencias'],
   ['orcamentos', 'Orçamentos', 'orcamentos'],
   ['importar', 'Importar proposta', 'importar'],
   ['locais', 'Locais e obras', 'locais'],
@@ -159,6 +161,7 @@ export default function App() {
   const [pagina, param] = rota;
   let conteudo;
   if (pagina === 'orcamentos' && param) conteudo = <OrcamentoDetalhe id={param} />;
+  else if (pagina === 'pendencias') conteudo = <Pendencias />;
   else if (pagina === 'orcamentos') conteudo = <Orcamentos />;
   else if (pagina === 'importar') conteudo = <Importar />;
   else if (pagina === 'locais') conteudo = <Locais abrirId={param} />;
