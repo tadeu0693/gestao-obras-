@@ -8,6 +8,7 @@ import OrcamentoDetalhe from './pages/OrcamentoDetalhe.jsx';
 import Importar from './pages/Importar.jsx';
 import Locais from './pages/Locais.jsx';
 import Materiais from './pages/Materiais.jsx';
+import Consolidado from './pages/Consolidado.jsx';
 import Estoque from './pages/Estoque.jsx';
 import Clientes from './pages/Clientes.jsx';
 import Config from './pages/Config.jsx';
@@ -23,6 +24,7 @@ const NAV = [
   ['importar', 'Importar proposta', 'importar'],
   ['locais', 'Locais e obras', 'locais'],
   ['materiais', 'Materiais', 'materiais'],
+  ['consolidado', 'Consolidado', 'consolidado'],
   ['estoque', 'Estoque', 'estoque'],
   ['clientes', 'Clientes', 'clientes'],
 ];
@@ -161,6 +163,7 @@ export default function App() {
   else if (pagina === 'importar') conteudo = <Importar />;
   else if (pagina === 'locais') conteudo = <Locais abrirId={param} />;
   else if (pagina === 'materiais') conteudo = <Materiais />;
+  else if (pagina === 'consolidado') conteudo = <Consolidado />;
   else if (pagina === 'estoque') conteudo = <Estoque />;
   else if (pagina === 'clientes') conteudo = <Clientes />;
   else if (pagina === 'config') conteudo = <Config />;

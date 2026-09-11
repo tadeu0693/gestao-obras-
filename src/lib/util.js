@@ -171,6 +171,21 @@ export function quantitativo(orcamentos, estoque) {
     .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo), 'pt-BR', { numeric: true }));
 }
 
+// Consolidado por código: soma quantidade e custo por PO, para os orçamentos escolhidos
+export function consolidarOrcamentos(orcamentos) {
+  const m = new Map();
+  for (const o of orcamentos)
+    for (const i of o.itens || []) {
+      const k = i.codigo || `sem:${semAcento(i.descricao)}`;
+      if (!m.has(k)) m.set(k, { codigo: i.codigo, descricao: i.descricao, grupo: i.grupo, categoria: i.categoria, un: i.unidade, porPO: {}, qtd: 0, custo: 0 });
+      const r = m.get(k);
+      r.porPO[o.po] = (r.porPO[o.po] || 0) + (Number(i.qtd) || 0);
+      r.qtd += Number(i.qtd) || 0;
+      r.custo += custoItem(i);
+    }
+  return [...m.values()].sort((a, b) => String(a.descricao).localeCompare(String(b.descricao), 'pt-BR'));
+}
+
 // ---------- API ----------
 export async function api(caminho, { metodo = 'GET', corpo } = {}) {
   const r = await fetch(`/api/${caminho}`, {
