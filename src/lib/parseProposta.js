@@ -219,11 +219,13 @@ export function parseWorkbook(wb, fileName = '') {
     const codigoRaw = cols.codigo !== undefined ? row[cols.codigo] : '';
     const codigo = codigoRaw === null ? '' : String(codigoRaw).trim();
     const categoriaArq = cols.categoria !== undefined ? String(row[cols.categoria] || '').trim() : '';
-    const qtdComprada = cols.qtdComprada !== undefined ? num(row[cols.qtdComprada]) : 0;
     const custoUnitFinal = custoUnit || (qtd ? custoTotal / qtd : 0);
-    // Se já foi lançada uma quantidade comprada mas a planilha não registrou o valor pago,
-    // assume o custo orçado como valor pago (o usuário ajusta depois se pagou diferente).
-    const valorUnitPago = cols.valorUnitPago !== undefined && num(row[cols.valorUnitPago]) ? num(row[cols.valorUnitPago]) : qtdComprada ? custoUnitFinal : 0;
+    let qtdComprada = cols.qtdComprada !== undefined ? num(row[cols.qtdComprada]) : 0;
+    let valorUnitPago = cols.valorUnitPago !== undefined ? num(row[cols.valorUnitPago]) : 0;
+    // A planilha às vezes só preenche um dos dois lados da compra; completa o outro
+    // assumindo o preço/quantidade orçados (o usuário ajusta depois se for diferente).
+    if (qtdComprada && !valorUnitPago) valorUnitPago = custoUnitFinal;
+    else if (valorUnitPago && !qtdComprada) qtdComprada = qtd;
     itens.push({
       id: uid(),
       grupo,

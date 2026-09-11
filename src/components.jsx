@@ -203,6 +203,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
         const n = { ...i, [campo]: v };
         if (campo === 'grupo') n.categoria = categoriaDoGrupo(v);
         if (campo === 'qtdComprada' && v && !i.valorUnitPago) n.valorUnitPago = i.custoUnit;
+        if (campo === 'valorUnitPago' && v && !i.qtdComprada) n.qtdComprada = i.qtd;
         return n;
       }),
     );
