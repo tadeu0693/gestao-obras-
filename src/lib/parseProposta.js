@@ -159,7 +159,7 @@ function mapColumns(headerCells) {
 
 export function categoriaDoGrupo(grupo) {
   if (grupo === 'M.O') return 'M.O';
-  if (grupo === 'Despesa_operacional' || grupo === 'Infra_rede' || grupo === 'Infra_seca') return 'Miscelâneas';
+  if (grupo === 'Despesa_operacional') return 'Miscelâneas';
   return 'Eletrônico';
 }
 
