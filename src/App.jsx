@@ -6,6 +6,7 @@ import Painel from './pages/Painel.jsx';
 import Orcamentos from './pages/Orcamentos.jsx';
 import OrcamentoDetalhe from './pages/OrcamentoDetalhe.jsx';
 import Importar from './pages/Importar.jsx';
+import ImportarSap from './pages/ImportarSap.jsx';
 import Locais from './pages/Locais.jsx';
 import Materiais from './pages/Materiais.jsx';
 import Consolidado from './pages/Consolidado.jsx';
@@ -24,6 +25,7 @@ const NAV = [
   ['pendencias', 'Pendências', 'pendencias'],
   ['orcamentos', 'Orçamentos', 'orcamentos'],
   ['importar', 'Importar proposta', 'importar'],
+  ['importar-sap', 'Importar SAP', 'importar-sap'],
   ['locais', 'Locais e obras', 'locais'],
   ['materiais', 'Materiais', 'materiais'],
   ['consolidado', 'Consolidado', 'consolidado'],
@@ -164,6 +166,7 @@ export default function App() {
   else if (pagina === 'pendencias') conteudo = <Pendencias />;
   else if (pagina === 'orcamentos') conteudo = <Orcamentos />;
   else if (pagina === 'importar') conteudo = <Importar />;
+  else if (pagina === 'importar-sap') conteudo = <ImportarSap />;
   else if (pagina === 'locais') conteudo = <Locais abrirId={param} />;
   else if (pagina === 'materiais') conteudo = <Materiais />;
   else if (pagina === 'consolidado') conteudo = <Consolidado />;
