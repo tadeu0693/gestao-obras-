@@ -152,6 +152,10 @@ select.status-sel { width: auto; padding: 4px 8px; font-size: 14px; }
 .linha-pendencia > div:first-child { min-width: 0; flex: 1; }
 .linha-pendencia strong { font-weight: 600; }
 
+.selecao-resumo { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 10px; background: #eef6f6; border: 1px solid var(--aqua-claro, #cfe8e8); border-radius: 10px; font-size: 14px; }
+.selecao-resumo button { margin-left: auto; }
+tr.linha-marcada td { background: #eef6f6; }
+
 /* ---------- régua de consumo (elemento principal do painel) ---------- */
 .regua { margin: 6px 0 4px; }
 .regua-numeros { display: flex; flex-wrap: wrap; gap: 8px 44px; margin-bottom: 14px; }

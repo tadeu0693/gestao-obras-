@@ -198,6 +198,13 @@ export function GraficoSemanal({ serie, orcado }) {
 
 // ---------- tabela editável de itens do orçamento ----------
 export function ItensTabela({ itens, onChange, compras = true, podeEditar = true }) {
+  const [selecionados, setSelecionados] = useState(() => new Set());
+  const alternar = (id) =>
+    setSelecionados((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
   const set = (id, campo, v) =>
     onChange(
       itens.map((i) => {
@@ -218,12 +225,37 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
   const totPago = itens.reduce((s, i) => s + pagoItem(i), 0);
   const grupos = [...new Set([...Object.values(GRUPOS), ...itens.map((i) => i.grupo).filter(Boolean)])];
 
+  const marcados = itens.filter((i) => selecionados.has(i.id));
+  const selCusto = marcados.reduce((s, i) => s + custoItem(i), 0);
+  const selRob = marcados.reduce((s, i) => s + (Number(i.rob) || 0), 0);
+  const selPago = marcados.reduce((s, i) => s + pagoItem(i), 0);
+
   return (
     <fieldset disabled={!podeEditar}>
+      {marcados.length > 0 && (
+        <div className="selecao-resumo">
+          <span>
+            <strong>{marcados.length}</strong> item{marcados.length !== 1 && 's'} selecionado{marcados.length !== 1 && 's'}
+          </span>
+          <span>
+            Custo: <strong>{moeda(selCusto)}</strong>
+          </span>
+          <span>
+            Pago: <strong>{moeda(selPago)}</strong>
+          </span>
+          <span>
+            Venda (ROB): <strong>{selRob ? moeda(selRob) : '—'}</strong>
+          </span>
+          <button className="pequeno" onClick={() => setSelecionados(new Set())}>
+            Limpar seleção
+          </button>
+        </div>
+      )}
       <div className="tabela-wrap">
-        <table className="tabela-edit" style={{ minWidth: compras ? 1620 : 1220 }}>
+        <table className="tabela-edit" style={{ minWidth: compras ? 1660 : 1260 }}>
           <thead>
             <tr>
+              <th style={{ width: 30 }} />
               <th style={{ width: 84 }}>Código</th>
               <th>Descrição</th>
               <th style={{ width: 150 }}>Grupo</th>
@@ -246,7 +278,10 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
           </thead>
           <tbody>
             {itens.map((i) => (
-              <tr key={i.id}>
+              <tr key={i.id} className={selecionados.has(i.id) ? 'linha-marcada' : ''}>
+                <td>
+                  <input type="checkbox" checked={selecionados.has(i.id)} onChange={() => alternar(i.id)} aria-label="Selecionar item" />
+                </td>
                 <td>
                   <input value={i.codigo || ''} placeholder="—" onChange={(e) => set(i.id, 'codigo', e.target.value)} aria-label="Código" />
                 </td>
@@ -304,7 +339,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={2}>
+              <td colSpan={3}>
                 {podeEditar && (
                   <button className="pequeno" onClick={adicionar}>
                     <Icone nome="mais" tam={15} /> Adicionar item
