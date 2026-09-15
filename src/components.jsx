@@ -224,6 +224,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
   const totCusto = itens.reduce((s, i) => s + custoItem(i), 0);
   const totRob = itens.reduce((s, i) => s + (Number(i.rob) || 0), 0);
   const totPago = itens.reduce((s, i) => s + pagoItem(i), 0);
+  const totFaltante = itens.reduce((s, i) => s + Math.max((Number(i.qtd) || 0) - (Number(i.qtdComprada) || 0), 0), 0);
   const grupos = [...new Set([...Object.values(GRUPOS), ...itens.map((i) => i.grupo).filter(Boolean)])];
 
   const marcados = itens.filter((i) => selecionados.has(i.id));
@@ -269,6 +270,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
               {compras && (
                 <>
                   <th className="num" style={{ width: 80 }}>Qtd comprada</th>
+                  <th className="num" style={{ width: 80 }}>Faltante</th>
                   <th style={{ width: 138 }}>Data compra</th>
                   <th className="num" style={{ width: 110 }}>Unit. pago</th>
                   <th className="num">Pago</th>
@@ -321,6 +323,12 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
                     <td>
                       <NumInput valor={i.qtdComprada} onChange={(v) => set(i.id, 'qtdComprada', v)} aria-label="Quantidade comprada" />
                     </td>
+                    <td className="num" style={{ color: Math.max((Number(i.qtd) || 0) - (Number(i.qtdComprada) || 0), 0) > 0 ? 'var(--vermelho)' : undefined }}>
+                      {(() => {
+                        const falta = Math.max((Number(i.qtd) || 0) - (Number(i.qtdComprada) || 0), 0);
+                        return falta ? numero(falta) : <span className="muted">ok</span>;
+                      })()}
+                    </td>
                     <td>
                       <input type="date" value={i.dataCompra || ''} onChange={(e) => set(i.id, 'dataCompra', e.target.value)} aria-label="Data da compra" />
                     </td>
@@ -354,7 +362,9 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
               <td className="num">{totRob ? moeda(totRob) : '—'}</td>
               {compras && (
                 <>
-                  <td colSpan={3} />
+                  <td />
+                  <td className="num muted">{totFaltante ? numero(totFaltante) : 'ok'}</td>
+                  <td colSpan={2} />
                   <td className="num">{moeda(totPago)}</td>
                 </>
               )}

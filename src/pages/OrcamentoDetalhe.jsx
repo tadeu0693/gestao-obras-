@@ -63,6 +63,7 @@ export default function OrcamentoDetalhe({ id }) {
         'Custo Total (R$)': custoItem(i),
         'Venda (ROB) (R$)': i.rob || 0,
         'Qtd Comprada': i.qtdComprada || 0,
+        'Qtd Faltante': Math.max((i.qtd || 0) - (i.qtdComprada || 0), 0),
         'Data da Compra': i.dataCompra || '',
         'Valor Unit Pago': i.valorUnitPago || 0,
         'Valor Pago (R$)': pagoItem(i),
