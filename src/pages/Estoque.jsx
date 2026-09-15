@@ -3,7 +3,7 @@ import { useApp } from '../App.jsx';
 import { Campo, Icone, NumInput } from '../components.jsx';
 import { data, numero, semAcento, uid, hojeISO, exportarExcel } from '../lib/util.js';
 
-const vazio = () => ({ id: uid(), data: hojeISO(), endereco: '', codigo: '', descricao: '', qtd: 0, po: '', obs: '' });
+const vazio = () => ({ id: uid(), data: hojeISO(), endereco: '', codigo: '', descricao: '', qtd: 0, po: '', localId: '', obs: '' });
 
 export default function Estoque() {
   const { dados, salvar, excluir, podeEditar, toast } = useApp();
@@ -18,6 +18,7 @@ export default function Estoque() {
     dados.orcamentos.forEach((o) => o.itens?.forEach((i) => i.codigo && !m.has(i.codigo) && m.set(i.codigo, i.descricao)));
     return m;
   }, [dados.orcamentos]);
+  const nomeLocal = (id) => dados.locais.find((l) => l.id === id)?.nome || '';
   const enderecos = [...new Set(dados.estoque.map((e) => e.endereco).filter(Boolean))];
 
   const lista = useMemo(() => {
@@ -45,7 +46,7 @@ export default function Estoque() {
           <button
             onClick={() =>
               exportarExcel('Estoque_recebido.xlsx', {
-                Estoque: lista.map((e) => ({ Data: data(e.data), Endereço: e.endereco, Código: e.codigo, Descrição: e.descricao, 'Qtd Recebida': e.qtd, PO: e.po || '', Obs: e.obs })),
+                Estoque: lista.map((e) => ({ Data: data(e.data), Endereço: e.endereco, Código: e.codigo, Descrição: e.descricao, 'Qtd Recebida': e.qtd, PO: e.po || '', 'Enviado para': nomeLocal(e.localId), Obs: e.obs })),
               })
             }
           >
@@ -83,6 +84,17 @@ export default function Estoque() {
             <Campo rotulo="PO" dica="opcional">
               <input value={form.po || ''} onChange={(e) => set('po', e.target.value.trim())} />
             </Campo>
+            <Campo rotulo="Enviado para o local" dica="opcional">
+              <select value={form.localId || ''} onChange={(e) => set('localId', e.target.value)}>
+                <option value="">Ainda no depósito</option>
+                {dados.locais.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.po ? `PO ${l.po} — ` : ''}
+                    {l.nome}
+                  </option>
+                ))}
+              </select>
+            </Campo>
             <Campo rotulo="Obs">
               <input value={form.obs} onChange={(e) => set('obs', e.target.value)} />
             </Campo>
@@ -111,6 +123,7 @@ export default function Estoque() {
                   <th>Descrição</th>
                   <th className="num">Qtd</th>
                   <th>Armazenagem</th>
+                  <th>Enviado para</th>
                   <th>PO</th>
                   <th>Obs</th>
                   <th />
@@ -124,6 +137,7 @@ export default function Estoque() {
                     <td>{e.descricao}</td>
                     <td className="num">{numero(e.qtd)}</td>
                     <td className="muted">{e.endereco}</td>
+                    <td className="muted">{nomeLocal(e.localId) || '—'}</td>
                     <td>{e.po}</td>
                     <td className="muted pequeno-txt">{e.obs}</td>
                     <td>

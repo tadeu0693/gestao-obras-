@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Campo, Gaveta, Icone, NumInput, Pill, StatusSelect } from '../components.jsx';
-import { filtrarPorCliente, semAcento, data, moeda0, uid, STATUS_LOCAL, exportarExcel, hojeISO } from '../lib/util.js';
+import { filtrarPorCliente, semAcento, data, moeda0, numero, uid, STATUS_LOCAL, exportarExcel, hojeISO, prontidaoLocal } from '../lib/util.js';
 
 const NOVO = (clienteId) => ({
   id: uid(),
@@ -178,12 +178,13 @@ export default function Locais({ abrirId }) {
                   <th className="num">Câmeras</th>
                   <th className="num">Postes</th>
                   <th className="num">M.O</th>
+                  <th>Material</th>
                   <th>Obs</th>
                 </tr>
               </thead>
               <tbody>
                 {grupos.map(([reg, ls]) => (
-                  <GrupoLinhas key={reg || 'todos'} reg={reg} ls={ls} colspan={clienteId ? 11 : 12} agrupar={agrupar} clienteId={clienteId} nomeCliente={nomeCliente} podeEditar={podeEditar} onStatus={mudarStatus} onAbrir={setEditando} />
+                  <GrupoLinhas key={reg || 'todos'} reg={reg} ls={ls} colspan={clienteId ? 12 : 13} agrupar={agrupar} clienteId={clienteId} nomeCliente={nomeCliente} podeEditar={podeEditar} onStatus={mudarStatus} onAbrir={setEditando} estoque={dados.estoque} />
                 ))}
               </tbody>
             </table>
@@ -198,7 +199,7 @@ export default function Locais({ abrirId }) {
   );
 }
 
-function GrupoLinhas({ reg, ls, colspan, agrupar, clienteId, nomeCliente, podeEditar, onStatus, onAbrir }) {
+function GrupoLinhas({ reg, ls, colspan, agrupar, clienteId, nomeCliente, podeEditar, onStatus, onAbrir, estoque }) {
   const hoje = hojeISO();
   return (
     <>
@@ -231,11 +232,25 @@ function GrupoLinhas({ reg, ls, colspan, agrupar, clienteId, nomeCliente, podeEd
             <td className="num">{totalCam(l.cameras) || ''}</td>
             <td className="num">{l.postes?.qtd || ''}</td>
             <td className="num">{l.moUnit ? moeda0(l.moUnit) : ''}</td>
+            <td>
+              <StatusMaterial local={l} estoque={estoque} />
+            </td>
             <td className="muted pequeno-txt trunc" title={l.obs}>{l.obs}</td>
           </tr>
         );
       })}
     </>
+  );
+}
+
+function StatusMaterial({ local, estoque }) {
+  const p = prontidaoLocal(local, estoque);
+  if (!p) return <span className="muted pequeno-txt">sem levantamento</span>;
+  if (p.pronto) return <span className="tag ok">Pronto pra iniciar</span>;
+  return (
+    <span className="tag falta" title={p.itens.filter((i) => i.falta > 0).map((i) => `${i.descricao}: falta ${i.falta}${i.un || ''}`).join(' · ')}>
+      Falta {p.total - p.completos} de {p.total}
+    </span>
   );
 }
 
@@ -420,13 +435,16 @@ function LocalEditor({ local, aoFechar }) {
           <div className="bloco-cab">
             <div>
               <h3>Levantamento técnico</h3>
-              <p>Materiais levantados em campo para este local. Usado na comparação com o orçado da PO.</p>
+              <p>Materiais levantados em campo para este local. Compare com o que já foi enviado pra cá (aba Estoque, campo "Enviado para o local").</p>
             </div>
-            {orcsPO.length > 0 && (
-              <button className="pequeno" onClick={copiarDoOrcamento}>
-                Copiar itens do orçamento
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <StatusMaterial local={l} estoque={dados.estoque} />
+              {orcsPO.length > 0 && (
+                <button className="pequeno" onClick={copiarDoOrcamento}>
+                  Copiar itens do orçamento
+                </button>
+              )}
+            </div>
           </div>
           <div className="tabela-wrap">
             <table className="tabela-edit">
@@ -436,6 +454,8 @@ function LocalEditor({ local, aoFechar }) {
                   <th>Descrição</th>
                   <th style={{ width: 60 }}>Un.</th>
                   <th className="num" style={{ width: 80 }}>Qtd</th>
+                  <th className="num" style={{ width: 80 }}>Recebido</th>
+                  <th className="num" style={{ width: 70 }}>Falta</th>
                   <th style={{ width: 130 }}>Obs</th>
                   <th style={{ width: 36 }} />
                 </tr>
@@ -454,6 +474,20 @@ function LocalEditor({ local, aoFechar }) {
                     </td>
                     <td>
                       <NumInput valor={r.qtd} onChange={(v) => setLev(r.id, 'qtd', v)} aria-label="Quantidade" />
+                    </td>
+                    <td className="num muted">
+                      {(() => {
+                        const receb = dados.estoque.filter((e) => e.localId === l.id && e.codigo === r.codigo).reduce((s, e) => s + (Number(e.qtd) || 0), 0);
+                        return r.codigo ? numero(receb) : '—';
+                      })()}
+                    </td>
+                    <td className="num" style={{ color: 'var(--vermelho)' }}>
+                      {(() => {
+                        if (!r.codigo) return '—';
+                        const receb = dados.estoque.filter((e) => e.localId === l.id && e.codigo === r.codigo).reduce((s, e) => s + (Number(e.qtd) || 0), 0);
+                        const falta = Math.max((Number(r.qtd) || 0) - receb, 0);
+                        return falta ? numero(falta) : <span className="muted">ok</span>;
+                      })()}
                     </td>
                     <td>
                       <input value={r.obs || ''} onChange={(e) => setLev(r.id, 'obs', e.target.value)} aria-label="Observação" />

@@ -191,7 +191,9 @@ export function pendencias(dados) {
   const hoje = hojeISO();
   const em30dias = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
-  const locaisParados = dados.locais.filter((l) => l.status === 'Não iniciada' || l.status === 'Pausada');
+  const locaisProntos = dados.locais.filter((l) => l.status === 'Não iniciada' && prontidaoLocal(l, dados.estoque)?.pronto);
+  const idsProntos = new Set(locaisProntos.map((l) => l.id));
+  const locaisParados = dados.locais.filter((l) => (l.status === 'Não iniciada' || l.status === 'Pausada') && !idsProntos.has(l.id));
 
   const orcamentosVencendo = dados.orcamentos
     .filter((o) => o.vencimento && o.vencimento <= em30dias && !['Encerrado', 'Perdido'].includes(o.status))
@@ -205,7 +207,24 @@ export function pendencias(dados) {
 
   const materiaisNaoRecebidos = quantitativo(dados.orcamentos, dados.estoque).filter((r) => r.comprada > 0 && r.recebido < r.comprada);
 
-  return { locaisParados, orcamentosVencendo, terceirosPendentes, materiaisNaoRecebidos };
+  return { locaisParados, locaisProntos, orcamentosVencendo, terceirosPendentes, materiaisNaoRecebidos };
+}
+
+// Compara o levantamento técnico de um local com o que já foi enviado pra ele (estoque.localId)
+export function prontidaoLocal(local, estoque) {
+  const necessarios = (local.levantamento || []).filter((it) => it.codigo);
+  if (!necessarios.length) return null;
+  const recebidoPorCodigo = {};
+  for (const e of estoque) {
+    if (e.localId !== local.id) continue;
+    recebidoPorCodigo[e.codigo] = (recebidoPorCodigo[e.codigo] || 0) + (Number(e.qtd) || 0);
+  }
+  const itens = necessarios.map((it) => {
+    const recebido = recebidoPorCodigo[it.codigo] || 0;
+    return { codigo: it.codigo, descricao: it.descricao, un: it.un, necessario: Number(it.qtd) || 0, recebido, falta: Math.max((Number(it.qtd) || 0) - recebido, 0) };
+  });
+  const completos = itens.filter((i) => i.falta <= 0).length;
+  return { itens, completos, total: itens.length, pronto: completos === itens.length };
 }
 
 // ---------- API ----------

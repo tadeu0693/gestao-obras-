@@ -7,7 +7,7 @@ export default function Pendencias() {
   const d = filtrarPorCliente(dados, clienteId);
   const p = pendencias(d);
   const hoje = hojeISO();
-  const total = p.locaisParados.length + p.orcamentosVencendo.length + p.terceirosPendentes.length + p.materiaisNaoRecebidos.length;
+  const total = p.locaisParados.length + p.locaisProntos.length + p.orcamentosVencendo.length + p.terceirosPendentes.length + p.materiaisNaoRecebidos.length;
 
   return (
     <>
@@ -25,6 +25,20 @@ export default function Pendencias() {
         <div className="vazio">Nenhuma pendência encontrada — tudo em dia por aqui.</div>
       ) : (
         <div className="duas-col">
+          <Bloco titulo="Prontos para iniciar" vazio="Nenhum local com material completo esperando início." qtd={p.locaisProntos.length}>
+            {p.locaisProntos.map((l) => (
+              <Linha key={l.id} onClick={() => navegar(`locais/${l.id}`)}>
+                <div>
+                  <strong>{l.nome}</strong>
+                  <div className="pequeno-txt muted">
+                    {l.po ? `PO ${l.po}` : 'Sem PO'}, {l.regiao || nomeCliente(l.clienteId)}
+                  </div>
+                </div>
+                <span className="tag ok">Material completo</span>
+              </Linha>
+            ))}
+          </Bloco>
+
           <Bloco titulo="Orçamentos vencendo ou vencidos" vazio="Nenhum orçamento vencendo nos próximos 30 dias." qtd={p.orcamentosVencendo.length}>
             {p.orcamentosVencendo.map((o) => (
               <Linha key={o.id} onClick={() => navegar(`orcamentos/${o.id}`)}>
