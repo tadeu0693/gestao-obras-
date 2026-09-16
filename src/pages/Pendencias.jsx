@@ -6,16 +6,20 @@ import { filtrarPorCliente, pendencias, data, moeda0, api } from '../lib/util.js
 const LIMITE_ALERTA = 70; // % do M.O orçado a partir do qual já vale alertar
 
 export default function Pendencias() {
-  const { dados, clienteId, nomeCliente } = useApp();
+  const { dados, clienteId, nomeCliente, recarregar } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
   const p = pendencias(d);
 
   const [mo, setMo] = useState(null); // null = ainda carregando/indisponível
+  const buscarMo = () => api('mo-integracao').then((r) => setMo(r.porPo || [])).catch(() => setMo([]));
   useEffect(() => {
-    api('mo-integracao')
-      .then((r) => setMo(r.porPo || []))
-      .catch(() => setMo([]));
-  }, []);
+    buscarMo();
+    const t = setInterval(() => {
+      recarregar();
+      buscarMo();
+    }, 60_000);
+    return () => clearInterval(t);
+  }, [recarregar]);
 
   const moAlerta = (mo || [])
     .filter((r) => r.pctConsumido != null && r.pctConsumido >= LIMITE_ALERTA)

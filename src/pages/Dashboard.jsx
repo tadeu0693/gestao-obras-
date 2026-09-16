@@ -10,8 +10,13 @@ const diasNaFrente = (n) => new Date(Date.now() + n * 86400000).toISOString().sl
 const SEGUNDOS_POR_SLIDE = 12;
 
 export default function Dashboard() {
-  const { dados, clienteId, nomeCliente } = useApp();
+  const { dados, clienteId, nomeCliente, recarregar } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
+
+  useEffect(() => {
+    const t = setInterval(recarregar, 60_000);
+    return () => clearInterval(t);
+  }, [recarregar]);
 
   const pos = useMemo(
     () =>
