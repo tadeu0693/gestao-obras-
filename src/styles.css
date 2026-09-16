@@ -43,7 +43,8 @@ a { color: var(--aqua); }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 
 /* ---------- estrutura ---------- */
-.app { display: grid; grid-template-columns: 224px 1fr; min-height: 100%; }
+.app { display: grid; grid-template-columns: 224px 1fr; min-height: 100%; transition: grid-template-columns 0.2s; }
+.app.rail-colapsado { grid-template-columns: 68px 1fr; }
 .rail {
   background: var(--grafite);
   color: #dfe6ea;
@@ -68,8 +69,16 @@ fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .rail .rodape { margin-top: auto; font-size: 13px; color: #93a3ad; padding: 8px 10px; }
 .rail .rodape button { color: #dfe6ea; background: none; border: 1px solid #4a5862; }
 .rail .rodape button:hover { background: var(--grafite-2); }
-.conteudo { padding: 26px 34px 60px; min-width: 0; }
-.topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+
+.rail-toggle { position: absolute; top: 26px; right: -12px; width: 24px; height: 24px; border-radius: 50%; background: var(--grafite); border: 1px solid #4a5862; color: #dfe6ea; display: flex; align-items: center; justify-content: center; padding: 0; }
+.rail-toggle:hover { background: var(--grafite-2); }
+.rail.colapsado { width: 68px; }
+.rail.colapsado .marca { justify-content: center; padding: 0 0 22px; }
+.rail.colapsado .marca > div, .rail.colapsado .nav span, .rail.colapsado .rodape > div:first-child, .rail.colapsado .rodape button span { display: none; }
+.rail.colapsado .nav { justify-content: center; }
+.rail.colapsado .rodape { display: flex; flex-direction: column; align-items: center; }
+.rail.colapsado .rodape button { padding: 8px; }
+.conteudo { padding: 26px 34px 60px; min-width: 0; }.topo { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
 .topo .sub { color: var(--texto-2); margin-top: 4px; }
 .topo-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .menu-movel { display: none; }
@@ -286,6 +295,8 @@ tr.linha-marcada td { background: #eef6f6; }
   .app { grid-template-columns: 1fr; }
   .rail { position: fixed; left: 0; top: 0; z-index: 30; width: 250px; transform: translateX(-100%); transition: transform .2s; }
   .rail.aberto { transform: none; }
+  .rail-toggle { display: none; }
+  .app.rail-colapsado { grid-template-columns: 1fr; }
   .menu-movel { display: inline-flex; margin-bottom: 12px; }
   .conteudo { padding: 16px 14px 60px; }
   .grade .largo { grid-column: auto; }

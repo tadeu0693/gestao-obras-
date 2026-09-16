@@ -52,6 +52,13 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState(null);
   const [clienteId, setClienteId] = useState(() => localStorage.getItem('go_cliente') || '');
   const [menuAberto, setMenuAberto] = useState(false);
+  const [railColapsado, setRailColapsado] = useState(() => localStorage.getItem('rail-colapsado') === '1');
+  const alternarRail = () => {
+    setRailColapsado((v) => {
+      localStorage.setItem('rail-colapsado', v ? '0' : '1');
+      return !v;
+    });
+  };
   const rota = useRota();
 
   const toast = useCallback((texto, erro = false) => {
@@ -176,8 +183,8 @@ export default function App() {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="app">
-        <nav className={`rail ${menuAberto ? 'aberto' : ''}`} aria-label="Menu principal">
+      <div className={`app ${railColapsado ? 'rail-colapsado' : ''}`}>
+        <nav className={`rail ${menuAberto ? 'aberto' : ''} ${railColapsado ? 'colapsado' : ''}`} aria-label="Menu principal">
           <div className="marca">
             <Simbolo className="marca-simbolo" />
             <div>
@@ -187,14 +194,14 @@ export default function App() {
           </div>
           {!somenteDashboard &&
             NAV.map(([id, rotulo, icone]) => (
-              <a key={id} href={`#/${id}`} className={`nav ${pagina === id || (!pagina && id === 'painel') ? 'ativo' : ''}`}>
-                <Icone nome={icone} /> {rotulo}
+              <a key={id} href={`#/${id}`} className={`nav ${pagina === id || (!pagina && id === 'painel') ? 'ativo' : ''}`} title={rotulo}>
+                <Icone nome={icone} /> <span>{rotulo}</span>
               </a>
             ))}
           <div className="sep" />
           {!somenteDashboard && (
-            <a href="#/config" className={`nav ${pagina === 'config' ? 'ativo' : ''}`}>
-              <Icone nome="config" /> Configurações
+            <a href="#/config" className={`nav ${pagina === 'config' ? 'ativo' : ''}`} title="Configurações">
+              <Icone nome="config" /> <span>Configurações</span>
             </a>
           )}
           <div className="rodape">
@@ -209,10 +216,13 @@ export default function App() {
                 {usuario.papel === 'admin' ? 'Administrador' : usuario.papel === 'editor' ? 'Editor' : usuario.papel === 'dashboard' ? 'Dashboard' : 'Somente leitura'}
               </span>
             </div>
-            <button className="pequeno" onClick={sair}>
-              <Icone nome="sair" tam={15} /> Sair
+            <button className="pequeno" onClick={sair} title="Sair">
+              <Icone nome="sair" tam={15} /> <span>Sair</span>
             </button>
           </div>
+          <button className="rail-toggle" onClick={alternarRail} aria-label={railColapsado ? 'Expandir menu' : 'Recolher menu'} title={railColapsado ? 'Expandir menu' : 'Recolher menu'}>
+            <Icone nome={railColapsado ? 'seguinte' : 'voltar'} tam={15} />
+          </button>
         </nav>
         <main className="conteudo">
           <button className="menu-movel" onClick={() => setMenuAberto((v) => !v)} aria-label="Abrir menu">
