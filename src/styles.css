@@ -178,6 +178,17 @@ tr.linha-marcada td { background: #eef6f6; }
 .legenda-mapa span { display: inline-flex; align-items: center; gap: 6px; }
 .legenda-mapa i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
+.carrossel { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 20px; }
+.carrossel-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 10px; }
+.carrossel-controles { display: flex; gap: 4px; }
+.carrossel-controles button { font-size: 18px; line-height: 1; padding: 6px 12px; }
+.carrossel-viewport { overflow: hidden; }
+.carrossel-trilho { display: flex; transition: transform 0.5s ease; }
+.carrossel-slide { flex: 0 0 100%; min-width: 0; }
+.carrossel-pontos { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
+.ponto { width: 8px; height: 8px; padding: 0; border-radius: 50%; background: var(--nevoa); border: none; cursor: pointer; }
+.ponto.ativo { background: var(--aqua); width: 22px; border-radius: 5px; }
+
 /* ---------- régua de consumo (elemento principal do painel) ---------- */
 .regua { margin: 6px 0 4px; }
 .regua-numeros { display: flex; flex-wrap: wrap; gap: 8px 44px; margin-bottom: 14px; }

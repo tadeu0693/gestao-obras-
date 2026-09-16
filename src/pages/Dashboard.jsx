@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem } from '../lib/util.js';
 
 const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const diasNaFrente = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const SEGUNDOS_POR_SLIDE = 12;
 
 export default function Dashboard() {
   const { dados, clienteId, nomeCliente } = useApp();
@@ -25,6 +27,8 @@ export default function Dashboard() {
     [d],
   );
 
+  const dadosGrafico = useMemo(() => pos.map((g) => ({ po: `PO ${g.po}`, Orçado: Math.round(g.orcado), Gasto: Math.round(g.pago) })), [pos]);
+
   const semana = useMemo(() => {
     const corte = diasAtras(7);
     const concluidosSemana = d.locais.filter((l) => l.status === 'Concluída' && l.atualizadoEm && l.atualizadoEm.slice(0, 10) >= corte);
@@ -35,6 +39,12 @@ export default function Dashboard() {
     const vencendoSemana = d.orcamentos.filter((o) => o.vencimento && o.vencimento >= hoje && o.vencimento <= limite && !['Encerrado', 'Perdido'].includes(o.status));
     return { concluidosSemana, gastoSemana, vencendoSemana };
   }, [d]);
+
+  const slides = [
+    { titulo: 'Progresso por PO', conteudo: <SlideProgresso pos={pos} nomeCliente={nomeCliente} /> },
+    { titulo: 'Orçado x Gasto por PO', conteudo: <SlideGrafico dados={dadosGrafico} /> },
+    { titulo: 'Essa semana e mapa da operação', conteudo: <SlideSemanaMapa semana={semana} locais={d.locais} /> },
+  ];
 
   return (
     <>
@@ -48,85 +58,155 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <section className="bloco">
-        <h2 style={{ marginBottom: 14 }}>Progresso por PO</h2>
-        {pos.length ? (
-          <div className="progresso-pos">
-            {pos.map((g) => (
-              <div key={g.clienteId + g.po} className="linha-progresso clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
-                <div className="linha-progresso-cab">
-                  <strong>PO {g.po}</strong>
-                  <span className="muted pequeno-txt">
-                    {nomeCliente(g.clienteId)} · {g.totalLocais} local{g.totalLocais !== 1 && 'is'}
-                  </span>
-                </div>
-                <div className="barra-dupla">
-                  <div className="barra-rotulo">
-                    <span>Locais concluídos</span>
-                    <span>{g.pctLocais == null ? '—' : `${g.concluidos}/${g.totalLocais} (${g.pctLocais}%)`}</span>
-                  </div>
-                  <div className="barra-fundo">
-                    <div className="barra-preenchida verde" style={{ width: `${g.pctLocais || 0}%` }} />
-                  </div>
-                  <div className="barra-rotulo">
-                    <span>Orçamento gasto</span>
-                    <span>
-                      {moeda0(g.pago)} de {moeda0(g.orcado)} ({g.pctGasto}%)
-                    </span>
-                  </div>
-                  <div className="barra-fundo">
-                    <div className="barra-preenchida aqua" style={{ width: `${g.pctGasto}%` }} />
-                  </div>
-                </div>
-              </div>
-            ))}
+      <Carrossel slides={slides} />
+    </>
+  );
+}
+
+function Carrossel({ slides }) {
+  const [ativo, setAtivo] = useState(0);
+  const [pausado, setPausado] = useState(false);
+
+  useEffect(() => {
+    if (pausado) return;
+    const t = setInterval(() => setAtivo((a) => (a + 1) % slides.length), SEGUNDOS_POR_SLIDE * 1000);
+    return () => clearInterval(t);
+  }, [pausado, slides.length]);
+
+  return (
+    <div className="carrossel">
+      <div className="carrossel-cab">
+        <h2>{slides[ativo].titulo}</h2>
+        <div className="carrossel-controles">
+          <button className="fantasma" aria-label="Slide anterior" onClick={() => setAtivo((a) => (a - 1 + slides.length) % slides.length)}>
+            ‹
+          </button>
+          <button className="fantasma" aria-label={pausado ? 'Retomar rotação' : 'Pausar rotação'} onClick={() => setPausado((p) => !p)}>
+            {pausado ? '▶' : '❚❚'}
+          </button>
+          <button className="fantasma" aria-label="Próximo slide" onClick={() => setAtivo((a) => (a + 1) % slides.length)}>
+            ›
+          </button>
+        </div>
+      </div>
+
+      <div className="carrossel-viewport">
+        <div className="carrossel-trilho" style={{ transform: `translateX(-${ativo * 100}%)` }}>
+          {slides.map((s, i) => (
+            <div className="carrossel-slide" key={i}>
+              {s.conteudo}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="carrossel-pontos">
+        {slides.map((s, i) => (
+          <button key={i} className={`ponto ${i === ativo ? 'ativo' : ''}`} aria-label={`Ir para ${s.titulo}`} onClick={() => setAtivo(i)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SlideProgresso({ pos, nomeCliente }) {
+  return pos.length ? (
+    <div className="progresso-pos">
+      {pos.map((g) => (
+        <div key={g.clienteId + g.po} className="linha-progresso clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
+          <div className="linha-progresso-cab">
+            <strong>PO {g.po}</strong>
+            <span className="muted pequeno-txt">
+              {nomeCliente(g.clienteId)} · {g.totalLocais} local{g.totalLocais !== 1 && 'is'}
+            </span>
           </div>
-        ) : (
-          <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>
+          <div className="barra-dupla">
+            <div className="barra-rotulo">
+              <span>Locais concluídos</span>
+              <span>{g.pctLocais == null ? '—' : `${g.concluidos}/${g.totalLocais} (${g.pctLocais}%)`}</span>
+            </div>
+            <div className="barra-fundo">
+              <div className="barra-preenchida verde" style={{ width: `${g.pctLocais || 0}%` }} />
+            </div>
+            <div className="barra-rotulo">
+              <span>Orçamento gasto</span>
+              <span>
+                {moeda0(g.pago)} de {moeda0(g.orcado)} ({g.pctGasto}%)
+              </span>
+            </div>
+            <div className="barra-fundo">
+              <div className="barra-preenchida aqua" style={{ width: `${g.pctGasto}%` }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>
+  );
+}
+
+function SlideGrafico({ dados }) {
+  if (!dados.length) return <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>;
+  return (
+    <div style={{ width: '100%', height: 360 }}>
+      <ResponsiveContainer>
+        <BarChart data={dados} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--nevoa)" />
+          <XAxis dataKey="po" tick={{ fontSize: 13 }} />
+          <YAxis tickFormatter={(v) => moeda0(v)} width={90} tick={{ fontSize: 12 }} />
+          <Tooltip formatter={(v) => moeda0(v)} />
+          <Legend />
+          <Bar dataKey="Orçado" fill="var(--aqua)" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Gasto" fill="var(--verde)" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function SlideSemanaMapa({ semana, locais }) {
+  return (
+    <div className="duas-col" style={{ marginTop: 0 }}>
+      <section>
+        <h3 style={{ marginBottom: 10 }}>Essa semana</h3>
+        <div className="resumo-semana">
+          <div>
+            <strong>{semana.concluidosSemana.length}</strong>
+            <span>local{semana.concluidosSemana.length !== 1 && 'is'} concluído{semana.concluidosSemana.length !== 1 && 's'}</span>
+          </div>
+          <div>
+            <strong>{moeda0(semana.gastoSemana)}</strong>
+            <span>gasto em compras</span>
+          </div>
+          <div>
+            <strong>{semana.vencendoSemana.length}</strong>
+            <span>orçamento{semana.vencendoSemana.length !== 1 && 's'} vencendo</span>
+          </div>
+        </div>
+        {semana.concluidosSemana.length > 0 && (
+          <ul className="lista-simples">
+            {semana.concluidosSemana.map((l) => (
+              <li key={l.id}>
+                ✓ {l.nome} <span className="muted pequeno-txt">— {data(l.atualizadoEm)}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
-      <div className="duas-col">
-        <section className="bloco">
-          <h2 style={{ marginBottom: 10 }}>Essa semana</h2>
-          <div className="resumo-semana">
-            <div>
-              <strong>{semana.concluidosSemana.length}</strong>
-              <span>local{semana.concluidosSemana.length !== 1 && 'is'} concluído{semana.concluidosSemana.length !== 1 && 's'}</span>
-            </div>
-            <div>
-              <strong>{moeda0(semana.gastoSemana)}</strong>
-              <span>gasto em compras</span>
-            </div>
-            <div>
-              <strong>{semana.vencendoSemana.length}</strong>
-              <span>orçamento{semana.vencendoSemana.length !== 1 && 's'} vencendo</span>
-            </div>
-          </div>
-          {semana.concluidosSemana.length > 0 && (
-            <ul className="lista-simples">
-              {semana.concluidosSemana.map((l) => (
-                <li key={l.id}>
-                  ✓ {l.nome} <span className="muted pequeno-txt">— {data(l.atualizadoEm)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="bloco">
-          <h2 style={{ marginBottom: 10 }}>Mapa da operação</h2>
-          <MapaOperacao locais={d.locais} />
-          <div className="legenda-mapa">
-            {Object.entries(COR_STATUS).map(([status, cor]) => (
-              <span key={status}>
-                <i style={{ background: cor }} /> {status}
-              </span>
-            ))}
-          </div>
-        </section>
-      </div>
-    </>
+      <section>
+        <h3 style={{ marginBottom: 10 }}>Mapa da operação</h3>
+        <MapaOperacao locais={locais} />
+        <div className="legenda-mapa">
+          {Object.entries(COR_STATUS).map(([status, cor]) => (
+            <span key={status}>
+              <i style={{ background: cor }} /> {status}
+            </span>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -144,6 +224,7 @@ function MapaOperacao({ locais }) {
     }).addTo(map);
     mapRef.current = map;
     camadaRef.current = L.layerGroup().addTo(map);
+    setTimeout(() => map.invalidateSize(), 100);
     return () => {
       map.remove();
       mapRef.current = null;
@@ -174,5 +255,5 @@ function MapaOperacao({ locais }) {
     setTimeout(() => map.invalidateSize(), 50);
   }, [locais]);
 
-  return <div ref={divRef} style={{ height: 340, borderRadius: 10, overflow: 'hidden' }} />;
+  return <div ref={divRef} style={{ height: 300, borderRadius: 10, overflow: 'hidden' }} />;
 }
