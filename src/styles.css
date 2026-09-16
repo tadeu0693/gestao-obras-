@@ -165,6 +165,7 @@ tr.linha-marcada td { background: #eef6f6; }
 .barra-fundo { height: 10px; border-radius: 6px; background: var(--nevoa); overflow: hidden; margin-bottom: 6px; }
 .barra-preenchida { height: 100%; border-radius: 6px; transition: width 0.3s; }
 .barra-preenchida.verde { background: var(--verde); }
+.barra-preenchida.vermelha { background: var(--vermelho); }
 .barra-preenchida.aqua { background: var(--aqua); }
 
 .resumo-semana { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }

@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
-import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem } from '../lib/util.js';
+import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem } from '../lib/util.js';
 
 const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const diasNaFrente = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -20,14 +19,24 @@ export default function Dashboard() {
           const totalLocais = g.locais.length;
           const concluidos = g.locais.filter((l) => l.status === 'Concluída').length;
           const pctLocais = totalLocais ? Math.round((concluidos / totalLocais) * 100) : null;
+          const estourado = g.pago > g.orcado;
           const pctGasto = g.orcado ? Math.min(Math.round((g.pago / g.orcado) * 100), 100) : 0;
-          return { ...g, totalLocais, concluidos, pctLocais, pctGasto };
+
+          let materialTotal = 0;
+          let materialComprado = 0;
+          for (const o of g.orcamentos)
+            for (const i of o.itens || []) {
+              materialTotal += custoItem(i);
+              materialComprado += Math.min(Number(i.qtdComprada) || 0, Number(i.qtd) || 0) * (Number(i.custoUnit) || 0);
+            }
+          const materialFaltante = Math.max(materialTotal - materialComprado, 0);
+          const pctMaterial = materialTotal ? Math.round((materialComprado / materialTotal) * 100) : 0;
+
+          return { ...g, totalLocais, concluidos, pctLocais, pctGasto, estourado, materialTotal, materialComprado, materialFaltante, pctMaterial };
         })
         .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true })),
     [d],
   );
-
-  const dadosGrafico = useMemo(() => pos.map((g) => ({ po: `PO ${g.po}`, Orçado: Math.round(g.orcado), Gasto: Math.round(g.pago) })), [pos]);
 
   const semana = useMemo(() => {
     const corte = diasAtras(7);
@@ -37,12 +46,16 @@ export default function Dashboard() {
     const hoje = hojeISO();
     const limite = diasNaFrente(7);
     const vencendoSemana = d.orcamentos.filter((o) => o.vencimento && o.vencimento >= hoje && o.vencimento <= limite && !['Encerrado', 'Perdido'].includes(o.status));
-    return { concluidosSemana, gastoSemana, vencendoSemana };
+    const proximosInicios = d.locais
+      .filter((l) => l.status === 'Não iniciada' && l.inicioPrevisto && l.inicioPrevisto >= hoje)
+      .sort((a, b) => a.inicioPrevisto.localeCompare(b.inicioPrevisto))
+      .slice(0, 5);
+    return { concluidosSemana, gastoSemana, vencendoSemana, proximosInicios };
   }, [d]);
 
   const slides = [
     { titulo: 'Progresso por PO', conteudo: <SlideProgresso pos={pos} nomeCliente={nomeCliente} /> },
-    { titulo: 'Orçado x Gasto por PO', conteudo: <SlideGrafico dados={dadosGrafico} /> },
+    { titulo: 'Orçamento e material por PO', conteudo: <SlideOrcamentoMaterial pos={pos} nomeCliente={nomeCliente} /> },
     { titulo: 'Essa semana e mapa da operação', conteudo: <SlideSemanaMapa semana={semana} locais={d.locais} /> },
   ];
 
@@ -146,21 +159,38 @@ function SlideProgresso({ pos, nomeCliente }) {
   );
 }
 
-function SlideGrafico({ dados }) {
-  if (!dados.length) return <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>;
+function SlideOrcamentoMaterial({ pos, nomeCliente }) {
+  if (!pos.length) return <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>;
   return (
-    <div style={{ width: '100%', height: 360 }}>
-      <ResponsiveContainer>
-        <BarChart data={dados} margin={{ top: 10, right: 20, left: 10, bottom: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--nevoa)" />
-          <XAxis dataKey="po" tick={{ fontSize: 13 }} />
-          <YAxis tickFormatter={(v) => moeda0(v)} width={90} tick={{ fontSize: 12 }} />
-          <Tooltip formatter={(v) => moeda0(v)} />
-          <Legend />
-          <Bar dataKey="Orçado" fill="var(--aqua)" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Gasto" fill="var(--verde)" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="progresso-pos">
+      {pos.map((g) => (
+        <div key={g.clienteId + g.po} className="linha-progresso clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
+          <div className="linha-progresso-cab">
+            <strong>PO {g.po}</strong>
+            <span className="muted pequeno-txt">{nomeCliente(g.clienteId)}</span>
+          </div>
+          <div className="barra-dupla">
+            <div className="barra-rotulo">
+              <span>Valor do projeto</span>
+              <span style={{ color: g.estourado ? 'var(--vermelho)' : undefined, fontWeight: g.estourado ? 700 : undefined }}>
+                {g.estourado ? `Estourado em ${moeda0(g.pago - g.orcado)}` : `${moeda0(g.pago)} de ${moeda0(g.orcado)} (${g.pctGasto}%)`}
+              </span>
+            </div>
+            <div className="barra-fundo">
+              <div className={`barra-preenchida ${g.estourado ? 'vermelha' : 'verde'}`} style={{ width: `${g.estourado ? 100 : g.pctGasto}%` }} />
+            </div>
+            <div className="barra-rotulo">
+              <span>Material comprado</span>
+              <span>
+                {moeda0(g.materialComprado)} de {moeda0(g.materialTotal)} — falta {moeda0(g.materialFaltante)}
+              </span>
+            </div>
+            <div className="barra-fundo">
+              <div className="barra-preenchida aqua" style={{ width: `${g.pctMaterial}%` }} />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -192,6 +222,18 @@ function SlideSemanaMapa({ semana, locais }) {
               </li>
             ))}
           </ul>
+        )}
+        {semana.proximosInicios.length > 0 && (
+          <>
+            <h3 style={{ margin: '18px 0 8px' }}>Próximos a começar</h3>
+            <ul className="lista-simples">
+              {semana.proximosInicios.map((l) => (
+                <li key={l.id}>
+                  {l.nome} <span className="muted pequeno-txt">— início previsto {data(l.inicioPrevisto)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
