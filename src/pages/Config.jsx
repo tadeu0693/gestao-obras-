@@ -146,7 +146,7 @@ function Usuarios() {
       <div className="bloco-cab">
         <div>
           <h2>Usuários</h2>
-          <p>Editor pode alterar dados; somente leitura só visualiza; administrador também gerencia usuários e backups.</p>
+          <p>Editor pode alterar dados; somente leitura só visualiza; dashboard só acessa a tela de Dashboard; administrador também gerencia usuários e backups.</p>
         </div>
         <button className="primario" onClick={() => setForm({ nome: '', usuario: '', senha: '', papel: 'editor', ativo: true })}>
           <Icone nome="mais" /> Novo usuário
@@ -169,6 +169,7 @@ function Usuarios() {
                 <option value="admin">Administrador</option>
                 <option value="editor">Editor</option>
                 <option value="leitor">Somente leitura</option>
+                <option value="dashboard">Dashboard (só visualização)</option>
               </select>
             </Campo>
             {form.id && (
@@ -201,7 +202,7 @@ function Usuarios() {
             <tr key={u.id}>
               <td>{u.nome}</td>
               <td>{u.usuario}</td>
-              <td>{u.papel === 'admin' ? 'Administrador' : u.papel === 'editor' ? 'Editor' : 'Somente leitura'}</td>
+              <td>{u.papel === 'admin' ? 'Administrador' : u.papel === 'editor' ? 'Editor' : u.papel === 'dashboard' ? 'Dashboard' : 'Somente leitura'}</td>
               <td>{u.ativo ? 'Ativo' : <span className="muted">Desativado</span>}</td>
               <td>{data(u.criadoEm)}</td>
               <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

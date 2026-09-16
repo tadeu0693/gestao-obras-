@@ -20,20 +20,27 @@ export default function Dashboard() {
           const totalLocais = g.locais.length;
           const concluidos = g.locais.filter((l) => l.status === 'Concluída').length;
           const pctLocais = totalLocais ? Math.round((concluidos / totalLocais) * 100) : null;
-          const estourado = g.pago > g.orcado;
-          const pctGasto = g.orcado ? Math.min(Math.round((g.pago / g.orcado) * 100), 100) : 0;
 
+          // Nos dashboards, M.O (recurso técnico/horas) fica de fora do orçado e gasto —
+          // ainda não é medido, entra quando as horas técnicas forem implementadas.
+          let orcado = 0;
+          let pago = 0;
           let materialTotal = 0;
           let materialComprado = 0;
           for (const o of g.orcamentos)
             for (const i of o.itens || []) {
+              if (i.categoria === 'M.O') continue;
+              orcado += custoItem(i);
+              pago += pagoItem(i);
               materialTotal += custoItem(i);
               materialComprado += Math.min(Number(i.qtdComprada) || 0, Number(i.qtd) || 0) * (Number(i.custoUnit) || 0);
             }
+          const estourado = pago > orcado;
+          const pctGasto = orcado ? Math.min(Math.round((pago / orcado) * 100), 100) : 0;
           const materialFaltante = Math.max(materialTotal - materialComprado, 0);
           const pctMaterial = materialTotal ? Math.round((materialComprado / materialTotal) * 100) : 0;
 
-          return { ...g, totalLocais, concluidos, pctLocais, pctGasto, estourado, materialTotal, materialComprado, materialFaltante, pctMaterial };
+          return { ...g, orcado, pago, totalLocais, concluidos, pctLocais, pctGasto, estourado, materialTotal, materialComprado, materialFaltante, pctMaterial };
         })
         .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true })),
     [d],

@@ -2,7 +2,7 @@ import { db } from './_lib/db.js';
 import { exigirUsuario, hashSenha, confereSenha, corpo, publico, criarSessao } from './_lib/auth.js';
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
-const PAPEIS = ['admin', 'editor', 'leitor'];
+const PAPEIS = ['admin', 'editor', 'leitor', 'dashboard'];
 
 export default async function handler(req, res) {
   try {

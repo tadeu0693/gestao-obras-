@@ -135,7 +135,7 @@ export default function App() {
       excluir,
       usuario,
       setUsuario,
-      podeEditar: usuario && usuario.papel !== 'leitor',
+      podeEditar: usuario && usuario.papel !== 'leitor' && usuario.papel !== 'dashboard',
       clienteId,
       setClienteId,
       toast,
@@ -159,8 +159,10 @@ export default function App() {
     );
 
   const [pagina, param] = rota;
+  const somenteDashboard = usuario.papel === 'dashboard';
   let conteudo;
-  if (pagina === 'orcamentos' && param) conteudo = <OrcamentoDetalhe id={param} />;
+  if (somenteDashboard) conteudo = <Dashboard />;
+  else if (pagina === 'orcamentos' && param) conteudo = <OrcamentoDetalhe id={param} />;
   else if (pagina === 'pendencias') conteudo = <Pendencias />;
   else if (pagina === 'dashboard') conteudo = <Dashboard />;
   else if (pagina === 'orcamentos') conteudo = <Orcamentos />;
@@ -183,15 +185,18 @@ export default function App() {
               <span>Controle de projetos</span>
             </div>
           </div>
-          {NAV.map(([id, rotulo, icone]) => (
-            <a key={id} href={`#/${id}`} className={`nav ${pagina === id || (!pagina && id === 'painel') ? 'ativo' : ''}`}>
-              <Icone nome={icone} /> {rotulo}
-            </a>
-          ))}
+          {!somenteDashboard &&
+            NAV.map(([id, rotulo, icone]) => (
+              <a key={id} href={`#/${id}`} className={`nav ${pagina === id || (!pagina && id === 'painel') ? 'ativo' : ''}`}>
+                <Icone nome={icone} /> {rotulo}
+              </a>
+            ))}
           <div className="sep" />
-          <a href="#/config" className={`nav ${pagina === 'config' ? 'ativo' : ''}`}>
-            <Icone nome="config" /> Configurações
-          </a>
+          {!somenteDashboard && (
+            <a href="#/config" className={`nav ${pagina === 'config' ? 'ativo' : ''}`}>
+              <Icone nome="config" /> Configurações
+            </a>
+          )}
           <div className="rodape">
             <div style={{ marginBottom: 8 }}>
               {usuario.nome !== 'Administrador' && (
@@ -200,7 +205,9 @@ export default function App() {
                   <br />
                 </>
               )}
-              <span className="pequeno-txt">{usuario.papel === 'admin' ? 'Administrador' : usuario.papel === 'editor' ? 'Editor' : 'Somente leitura'}</span>
+              <span className="pequeno-txt">
+                {usuario.papel === 'admin' ? 'Administrador' : usuario.papel === 'editor' ? 'Editor' : usuario.papel === 'dashboard' ? 'Dashboard' : 'Somente leitura'}
+              </span>
             </div>
             <button className="pequeno" onClick={sair}>
               <Icone nome="sair" tam={15} /> Sair
