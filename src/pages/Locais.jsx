@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Campo, Gaveta, Icone, NumInput, Pill, StatusSelect } from '../components.jsx';
-import { filtrarPorCliente, semAcento, data, moeda0, uid, STATUS_LOCAL, exportarExcel, hojeISO } from '../lib/util.js';
+import { filtrarPorCliente, semAcento, data, moeda0, uid, STATUS_LOCAL, exportarExcel, hojeISO, geocodificarEndereco } from '../lib/util.js';
 
 const NOVO = (clienteId) => ({
   id: uid(),
@@ -36,6 +36,7 @@ export default function Locais({ abrirId }) {
   const [fStatus, setFStatus] = useState('');
   const [agrupar, setAgrupar] = useState(true);
   const [editando, setEditando] = useState(null);
+  const [geocodificando, setGeocodificando] = useState(false);
 
   useEffect(() => {
     if (abrirId) {
@@ -110,6 +111,29 @@ export default function Locais({ abrirId }) {
       })),
     });
 
+  const geocodificarPendentes = async () => {
+    const pendentes = d.locais.filter((l) => l.endereco && (!l.lat || !l.lng));
+    if (!pendentes.length) return toast('Todos os locais com endereço já têm coordenadas.');
+    setGeocodificando(true);
+    let ok = 0;
+    let falhou = 0;
+    try {
+      for (const l of pendentes) {
+        const coords = await geocodificarEndereco(l.endereco);
+        if (coords) {
+          await salvar('locais', { ...l, ...coords });
+          ok++;
+        } else {
+          falhou++;
+        }
+        await new Promise((r) => setTimeout(r, 1100)); // respeita o limite do serviço gratuito (1 req/s)
+      }
+      toast(`${ok} local${ok !== 1 ? 'is' : ''} geocodificado${ok !== 1 ? 's' : ''}${falhou ? `, ${falhou} não encontrado(s)` : ''}.`, falhou > 0 && ok === 0);
+    } finally {
+      setGeocodificando(false);
+    }
+  };
+
   return (
     <>
       <div className="topo">
@@ -119,6 +143,11 @@ export default function Locais({ abrirId }) {
         </div>
         <div className="topo-acoes">
           <FiltroCliente />
+          {podeEditar && d.locais.some((l) => l.endereco && (!l.lat || !l.lng)) && (
+            <button onClick={geocodificarPendentes} disabled={geocodificando}>
+              <Icone nome="importar-sap" tam={16} /> {geocodificando ? 'Geocodificando…' : 'Geocodificar pendentes'}
+            </button>
+          )}
           <button onClick={exportar}>
             <Icone nome="baixar" /> Exportar Excel
           </button>
@@ -255,7 +284,13 @@ function LocalEditor({ local, aoFechar }) {
     if (!l.nome.trim()) return toast('Informe o nome do local.', true);
     setSalvando(true);
     try {
-      await salvar('locais', l);
+      let registro = l;
+      const enderecoMudou = l.endereco && l.endereco !== local.endereco;
+      if (l.endereco && (!l.lat || !l.lng || enderecoMudou)) {
+        const coords = await geocodificarEndereco(l.endereco);
+        if (coords) registro = { ...l, ...coords };
+      }
+      await salvar('locais', registro);
       toast('Local salvo');
       aoFechar();
     } finally {

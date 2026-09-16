@@ -10,6 +10,25 @@ export const numero = (v) => nf.format(v || 0);
 export const pct = (v) => `${nf.format((v || 0) * 100)}%`;
 export const data = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
 export const hojeISO = () => new Date().toISOString().slice(0, 10);
+
+// Converte um endereço em texto para coordenadas (lat/lng), usando o geocodificador
+// gratuito do OpenStreetMap. Retorna null se não achar ou der erro de rede.
+export async function geocodificarEndereco(endereco) {
+  if (!endereco || !endereco.trim()) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(endereco)}`;
+    const r = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    if (!r.ok) return null;
+    const arr = await r.json();
+    if (!arr.length) return null;
+    const lat = Number(arr[0].lat);
+    const lng = Number(arr[0].lon);
+    if (!isFinite(lat) || !isFinite(lng)) return null;
+    return { lat, lng };
+  } catch {
+    return null;
+  }
+}
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 export const parseNum = (s) => {
