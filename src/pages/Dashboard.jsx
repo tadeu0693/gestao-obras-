@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem } from '../lib/util.js';
 
@@ -161,36 +162,61 @@ function SlideProgresso({ pos, nomeCliente }) {
 
 function SlideOrcamentoMaterial({ pos, nomeCliente }) {
   if (!pos.length) return <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>;
+
+  const dadosOrcamento = pos.map((g) => ({
+    po: `PO ${g.po}`,
+    pct: g.orcado ? Math.round((g.pago / g.orcado) * 100) : 0,
+    estourado: g.estourado,
+    gasto: g.pago,
+    orcado: g.orcado,
+  }));
+  const dadosMaterial = pos.map((g) => ({
+    po: `PO ${g.po}`,
+    Comprado: Math.round(g.materialComprado),
+    Faltante: Math.round(g.materialFaltante),
+  }));
+  const alturaLinha = 46;
+  const alturaGrafico = Math.max(pos.length * alturaLinha + 40, 140);
+
   return (
-    <div className="progresso-pos">
-      {pos.map((g) => (
-        <div key={g.clienteId + g.po} className="linha-progresso clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
-          <div className="linha-progresso-cab">
-            <strong>PO {g.po}</strong>
-            <span className="muted pequeno-txt">{nomeCliente(g.clienteId)}</span>
-          </div>
-          <div className="barra-dupla">
-            <div className="barra-rotulo">
-              <span>Valor do projeto</span>
-              <span style={{ color: g.estourado ? 'var(--vermelho)' : undefined, fontWeight: g.estourado ? 700 : undefined }}>
-                {g.estourado ? `Estourado em ${moeda0(g.pago - g.orcado)}` : `${moeda0(g.pago)} de ${moeda0(g.orcado)} (${g.pctGasto}%)`}
-              </span>
-            </div>
-            <div className="barra-fundo">
-              <div className={`barra-preenchida ${g.estourado ? 'vermelha' : 'verde'}`} style={{ width: `${g.estourado ? 100 : g.pctGasto}%` }} />
-            </div>
-            <div className="barra-rotulo">
-              <span>Material comprado</span>
-              <span>
-                {moeda0(g.materialComprado)} de {moeda0(g.materialTotal)} — falta {moeda0(g.materialFaltante)}
-              </span>
-            </div>
-            <div className="barra-fundo">
-              <div className="barra-preenchida aqua" style={{ width: `${g.pctMaterial}%` }} />
-            </div>
-          </div>
+    <div className="duas-col" style={{ marginTop: 0 }}>
+      <section>
+        <h3 style={{ marginBottom: 10 }}>% do orçamento usado</h3>
+        <div style={{ width: '100%', height: alturaGrafico }}>
+          <ResponsiveContainer>
+            <BarChart data={dadosOrcamento} layout="vertical" margin={{ top: 4, right: 30, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--nevoa)" horizontal={false} />
+              <XAxis type="number" tickFormatter={(v) => `${v}%`} domain={[0, (max) => Math.max(120, max + 10)]} tick={{ fontSize: 12 }} />
+              <YAxis type="category" dataKey="po" width={70} tick={{ fontSize: 13 }} />
+              <ReferenceLine x={100} stroke="var(--texto-2)" strokeDasharray="4 4" label={{ value: '100%', position: 'top', fontSize: 11, fill: 'var(--texto-2)' }} />
+              <Tooltip
+                formatter={(v, n, p) => [`${moeda0(p.payload.gasto)} de ${moeda0(p.payload.orcado)} (${v}%)`, p.payload.estourado ? 'Estourado' : 'Usado']}
+              />
+              <Bar dataKey="pct" radius={[0, 4, 4, 0]} barSize={22}>
+                {dadosOrcamento.map((e, i) => (
+                  <Cell key={i} fill={e.estourado ? 'var(--vermelho)' : 'var(--verde)'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-      ))}
+      </section>
+
+      <section>
+        <h3 style={{ marginBottom: 10 }}>Material comprado x faltante</h3>
+        <div style={{ width: '100%', height: alturaGrafico }}>
+          <ResponsiveContainer>
+            <BarChart data={dadosMaterial} layout="vertical" margin={{ top: 4, right: 20, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--nevoa)" horizontal={false} />
+              <XAxis type="number" tickFormatter={(v) => moeda0(v)} tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="po" width={70} tick={{ fontSize: 13 }} />
+              <Tooltip formatter={(v) => moeda0(v)} />
+              <Bar dataKey="Comprado" stackId="m" fill="var(--aqua)" barSize={22} />
+              <Bar dataKey="Faltante" stackId="m" fill="var(--nevoa)" radius={[0, 4, 4, 0]} barSize={22} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
     </div>
   );
 }
