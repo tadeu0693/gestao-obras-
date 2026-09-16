@@ -142,35 +142,6 @@ export function validacaoPO(orcamentos, locais) {
     .sort((a, b) => (a.codigo ? 0 : 1) - (b.codigo ? 0 : 1) || String(a.codigo).localeCompare(String(b.codigo), 'pt-BR', { numeric: true }));
 }
 
-// Consolidado por código: orçado, comprado, recebido em estoque
-export function quantitativo(orcamentos, estoque) {
-  const m = new Map();
-  for (const o of orcamentos)
-    for (const i of o.itens || []) {
-      if (i.categoria !== 'Eletrônico') continue;
-      const k = i.codigo || `sem:${semAcento(i.descricao)}`;
-      if (!m.has(k)) m.set(k, { codigo: i.codigo, descricao: i.descricao, grupo: i.grupo, un: i.unidade, porPO: {}, qtd: 0, custo: 0, comprada: 0, pago: 0, recebido: 0 });
-      const r = m.get(k);
-      r.porPO[o.po] = (r.porPO[o.po] || 0) + (Number(i.qtd) || 0);
-      r.qtd += Number(i.qtd) || 0;
-      r.custo += custoItem(i);
-      r.comprada += Number(i.qtdComprada) || 0;
-      r.pago += pagoItem(i);
-    }
-  for (const e of estoque) {
-    const r = e.codigo && m.get(e.codigo);
-    if (r) r.recebido += Number(e.qtd) || 0;
-  }
-  return [...m.values()]
-    .map((r) => {
-      const saldo = Math.max(r.qtd - r.recebido, 0);
-      const sobra = Math.max(r.recebido - r.qtd, 0);
-      const sit = r.recebido <= 0 ? 'Não recebido' : saldo > 0 ? 'Parcial' : 'Recebido';
-      return { ...r, saldo, sobra, sit };
-    })
-    .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo), 'pt-BR', { numeric: true }));
-}
-
 // Consolidado por código: soma quantidade e custo por PO, para os orçamentos escolhidos
 export function consolidarOrcamentos(orcamentos) {
   const m = new Map();
@@ -191,9 +162,7 @@ export function pendencias(dados) {
   const hoje = hojeISO();
   const em30dias = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
-  const locaisProntos = dados.locais.filter((l) => l.status === 'Não iniciada' && prontidaoLocal(l, dados.estoque)?.pronto);
-  const idsProntos = new Set(locaisProntos.map((l) => l.id));
-  const locaisParados = dados.locais.filter((l) => (l.status === 'Não iniciada' || l.status === 'Pausada') && !idsProntos.has(l.id));
+  const locaisParados = dados.locais.filter((l) => l.status === 'Não iniciada' || l.status === 'Pausada');
 
   const orcamentosVencendo = dados.orcamentos
     .filter((o) => o.vencimento && o.vencimento <= em30dias && !['Encerrado', 'Perdido'].includes(o.status))
@@ -205,26 +174,7 @@ export function pendencias(dados) {
     .filter((l) => l.saldoTerceiro > 0.01)
     .sort((a, b) => b.saldoTerceiro - a.saldoTerceiro);
 
-  const materiaisNaoRecebidos = quantitativo(dados.orcamentos, dados.estoque).filter((r) => r.comprada > 0 && r.recebido < r.comprada);
-
-  return { locaisParados, locaisProntos, orcamentosVencendo, terceirosPendentes, materiaisNaoRecebidos };
-}
-
-// Compara o levantamento técnico de um local com o que já foi enviado pra ele (estoque.localId)
-export function prontidaoLocal(local, estoque) {
-  const necessarios = (local.levantamento || []).filter((it) => it.codigo);
-  if (!necessarios.length) return null;
-  const recebidoPorCodigo = {};
-  for (const e of estoque) {
-    if (e.localId !== local.id) continue;
-    recebidoPorCodigo[e.codigo] = (recebidoPorCodigo[e.codigo] || 0) + (Number(e.qtd) || 0);
-  }
-  const itens = necessarios.map((it) => {
-    const recebido = recebidoPorCodigo[it.codigo] || 0;
-    return { codigo: it.codigo, descricao: it.descricao, un: it.un, necessario: Number(it.qtd) || 0, recebido, falta: Math.max((Number(it.qtd) || 0) - recebido, 0) };
-  });
-  const completos = itens.filter((i) => i.falta <= 0).length;
-  return { itens, completos, total: itens.length, pronto: completos === itens.length };
+  return { locaisParados, orcamentosVencendo, terceirosPendentes };
 }
 
 // ---------- API ----------
