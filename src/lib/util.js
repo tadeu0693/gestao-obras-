@@ -196,6 +196,15 @@ export function pendencias(dados) {
   return { locaisParados, orcamentosVencendo, terceirosPendentes };
 }
 
+export const categoriaCargo = (cargo) => (/AUXILIAR/i.test(cargo || '') ? 'auxiliar' : 'tecnico');
+
+// Acha o valor/hora cadastrado para uma composição de equipe (nº técnicos + nº auxiliares).
+// Retorna null quando não existe regra cadastrada para essa composição.
+export function valorHoraEquipe(tabelaMO, tecnicos, auxiliares) {
+  const regra = (tabelaMO || []).find((r) => Number(r.tecnicos) === tecnicos && Number(r.auxiliares) === auxiliares);
+  return regra ? Number(regra.valorHora) || 0 : null;
+}
+
 // ---------- API ----------
 export async function api(caminho, { metodo = 'GET', corpo } = {}) {
   const r = await fetch(`/api/${caminho}`, {

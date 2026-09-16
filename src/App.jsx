@@ -17,7 +17,7 @@ import Config from './pages/Config.jsx';
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
 
-const VAZIO = { clientes: [], orcamentos: [], locais: [], estoque: [] };
+const VAZIO = { clientes: [], orcamentos: [], locais: [], estoque: [], tabelaMO: [] };
 
 const NAV = [
   ['painel', 'Painel', 'painel'],

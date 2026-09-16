@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApp } from '../App.jsx';
 import { Campo, Icone } from '../components.jsx';
-import { api, baixarJSON, data, hojeISO } from '../lib/util.js';
+import { api, baixarJSON, data, hojeISO, moeda0, uid } from '../lib/util.js';
 
 export default function Config() {
   const { usuario } = useApp();
@@ -17,7 +17,89 @@ export default function Config() {
         <Backup />
       </div>
       {usuario.papel === 'admin' && <Usuarios />}
+      <TabelaMO />
     </>
+  );
+}
+
+function TabelaMO() {
+  const { dados, salvar, excluir, podeEditar, toast } = useApp();
+  const [novo, setNovo] = useState({ tecnicos: 2, auxiliares: 0, valorHora: '' });
+  const tabela = [...(dados.tabelaMO || [])].sort((a, b) => b.tecnicos + b.auxiliares - (a.tecnicos + a.auxiliares) || b.tecnicos - a.tecnicos);
+
+  const adicionar = async () => {
+    const t = Number(novo.tecnicos) || 0;
+    const a = Number(novo.auxiliares) || 0;
+    const v = Number(String(novo.valorHora).replace(',', '.'));
+    if (t + a < 1) return toast('Informe pelo menos 1 pessoa na equipe.', true);
+    if (!v) return toast('Informe o valor da hora.', true);
+    if (tabela.some((r) => r.tecnicos === t && r.auxiliares === a)) return toast('Já existe uma regra para essa composição — edite ou remova ela primeiro.', true);
+    await salvar('tabelaMO', { id: uid(), tecnicos: t, auxiliares: a, valorHora: v });
+    setNovo({ tecnicos: 2, auxiliares: 0, valorHora: '' });
+  };
+
+  const remover = async (r) => {
+    await excluir('tabelaMO', r.id);
+    toast('Regra removida.');
+  };
+
+  return (
+    <section className="bloco">
+      <div className="bloco-cab">
+        <div>
+          <h2>Valor da hora por equipe (M.O)</h2>
+          <p>Quanto cobrar por hora conforme quem está alocado junto na mesma PO. Especialista e Supervisor contam como técnico.</p>
+        </div>
+      </div>
+      <div className="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th className="num">Técnicos</th>
+              <th className="num">Auxiliares</th>
+              <th className="num">Valor da hora (equipe)</th>
+              {podeEditar && <th />}
+            </tr>
+          </thead>
+          <tbody>
+            {tabela.map((r) => (
+              <tr key={r.id}>
+                <td className="num">{r.tecnicos}</td>
+                <td className="num">{r.auxiliares}</td>
+                <td className="num">{moeda0(r.valorHora)}</td>
+                {podeEditar && (
+                  <td className="num">
+                    <button className="fantasma" aria-label="Remover" onClick={() => remover(r)}>
+                      <Icone nome="lixo" tam={16} />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {tabela.length === 0 && <p className="muted pequeno-txt">Nenhuma composição cadastrada ainda.</p>}
+      {podeEditar && (
+        <div className="filtros" style={{ marginTop: 14 }}>
+          <label className="campo" style={{ maxWidth: 110 }}>
+            <span>Técnicos</span>
+            <input type="number" min="0" value={novo.tecnicos} onChange={(e) => setNovo({ ...novo, tecnicos: e.target.value })} />
+          </label>
+          <label className="campo" style={{ maxWidth: 110 }}>
+            <span>Auxiliares</span>
+            <input type="number" min="0" value={novo.auxiliares} onChange={(e) => setNovo({ ...novo, auxiliares: e.target.value })} />
+          </label>
+          <label className="campo" style={{ maxWidth: 150 }}>
+            <span>Valor/hora (R$)</span>
+            <input value={novo.valorHora} placeholder="ex: 135" onChange={(e) => setNovo({ ...novo, valorHora: e.target.value })} />
+          </label>
+          <button className="primario" onClick={adicionar} style={{ alignSelf: 'flex-end' }}>
+            <Icone nome="mais" tam={16} /> Adicionar regra
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 
