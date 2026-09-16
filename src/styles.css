@@ -190,6 +190,15 @@ tr.linha-marcada td { background: #eef6f6; }
 .ponto { width: 8px; height: 8px; padding: 0; border-radius: 50%; background: var(--nevoa); border: none; cursor: pointer; }
 .ponto.ativo { background: var(--aqua); width: 22px; border-radius: 5px; }
 
+.grid-cards-po { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.card-po { border: 1px solid var(--linha); border-radius: 12px; padding: 14px; cursor: pointer; }
+.card-po:hover { background: #f7f9f9; }
+.card-po-cab { display: flex; flex-direction: column; margin-bottom: 4px; }
+.gauge-wrap { position: relative; }
+.gauge-centro { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: flex; flex-direction: column; }
+.gauge-centro strong { font-size: 22px; font-weight: 700; }
+.gauge-centro span { font-size: 11px; color: var(--texto-2); }
+
 /* ---------- régua de consumo (elemento principal do painel) ---------- */
 .regua { margin: 6px 0 4px; }
 .regua-numeros { display: flex; flex-wrap: wrap; gap: 8px 44px; margin-bottom: 14px; }

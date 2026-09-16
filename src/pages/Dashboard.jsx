@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem } from '../lib/util.js';
 
@@ -162,61 +162,58 @@ function SlideProgresso({ pos, nomeCliente }) {
 
 function SlideOrcamentoMaterial({ pos, nomeCliente }) {
   if (!pos.length) return <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>;
+  return (
+    <div className="grid-cards-po">
+      {pos.map((g) => (
+        <CardOrcamentoPO key={g.clienteId + g.po} g={g} nomeCliente={nomeCliente} />
+      ))}
+    </div>
+  );
+}
 
-  const dadosOrcamento = pos.map((g) => ({
-    po: `PO ${g.po}`,
-    pct: g.orcado ? Math.round((g.pago / g.orcado) * 100) : 0,
-    estourado: g.estourado,
-    gasto: g.pago,
-    orcado: g.orcado,
-  }));
-  const dadosMaterial = pos.map((g) => ({
-    po: `PO ${g.po}`,
-    Comprado: Math.round(g.materialComprado),
-    Faltante: Math.round(g.materialFaltante),
-  }));
-  const alturaLinha = 46;
-  const alturaGrafico = Math.max(pos.length * alturaLinha + 40, 140);
+function CardOrcamentoPO({ g, nomeCliente }) {
+  const cor = g.estourado ? 'var(--vermelho)' : 'var(--verde)';
+  const pctMostrado = g.estourado ? 100 : g.pctGasto;
+  const dadosGauge = [{ value: pctMostrado, fill: cor }];
+  const dadosMaterial = [{ po: 'material', Comprado: Math.round(g.materialComprado), Faltante: Math.round(g.materialFaltante) }];
 
   return (
-    <div className="duas-col" style={{ marginTop: 0 }}>
-      <section>
-        <h3 style={{ marginBottom: 10 }}>% do orçamento usado</h3>
-        <div style={{ width: '100%', height: alturaGrafico }}>
-          <ResponsiveContainer>
-            <BarChart data={dadosOrcamento} layout="vertical" margin={{ top: 4, right: 30, left: 8, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--nevoa)" horizontal={false} />
-              <XAxis type="number" tickFormatter={(v) => `${v}%`} domain={[0, (max) => Math.max(120, max + 10)]} tick={{ fontSize: 12 }} />
-              <YAxis type="category" dataKey="po" width={70} tick={{ fontSize: 13 }} />
-              <ReferenceLine x={100} stroke="var(--texto-2)" strokeDasharray="4 4" label={{ value: '100%', position: 'top', fontSize: 11, fill: 'var(--texto-2)' }} />
-              <Tooltip
-                formatter={(v, n, p) => [`${moeda0(p.payload.gasto)} de ${moeda0(p.payload.orcado)} (${v}%)`, p.payload.estourado ? 'Estourado' : 'Usado']}
-              />
-              <Bar dataKey="pct" radius={[0, 4, 4, 0]} barSize={22}>
-                {dadosOrcamento.map((e, i) => (
-                  <Cell key={i} fill={e.estourado ? 'var(--vermelho)' : 'var(--verde)'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+    <div className="card-po clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
+      <div className="card-po-cab">
+        <strong>PO {g.po}</strong>
+        <span className="muted pequeno-txt">{nomeCliente(g.clienteId)}</span>
+      </div>
 
-      <section>
-        <h3 style={{ marginBottom: 10 }}>Material comprado x faltante</h3>
-        <div style={{ width: '100%', height: alturaGrafico }}>
-          <ResponsiveContainer>
-            <BarChart data={dadosMaterial} layout="vertical" margin={{ top: 4, right: 20, left: 8, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--nevoa)" horizontal={false} />
-              <XAxis type="number" tickFormatter={(v) => moeda0(v)} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="po" width={70} tick={{ fontSize: 13 }} />
-              <Tooltip formatter={(v) => moeda0(v)} />
-              <Bar dataKey="Comprado" stackId="m" fill="var(--aqua)" barSize={22} />
-              <Bar dataKey="Faltante" stackId="m" fill="var(--nevoa)" radius={[0, 4, 4, 0]} barSize={22} />
-            </BarChart>
-          </ResponsiveContainer>
+      <div className="gauge-wrap">
+        <ResponsiveContainer width="100%" height={130}>
+          <RadialBarChart innerRadius="72%" outerRadius="100%" data={dadosGauge} startAngle={90} endAngle={-270} barSize={12}>
+            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+            <RadialBar dataKey="value" cornerRadius={8} background={{ fill: 'var(--nevoa)' }} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div className="gauge-centro">
+          <strong style={{ color: cor }}>{g.estourado ? `+${Math.round(((g.pago - g.orcado) / g.orcado) * 100)}%` : `${g.pctGasto}%`}</strong>
+          <span>{g.estourado ? 'estourado' : 'do orçado'}</span>
         </div>
-      </section>
+      </div>
+      <p className="pequeno-txt muted" style={{ textAlign: 'center', margin: '2px 0 12px' }}>
+        {moeda0(g.pago)} de {moeda0(g.orcado)}
+      </p>
+
+      <div className="pequeno-txt muted" style={{ marginBottom: 4 }}>
+        Material: {moeda0(g.materialComprado)} comprado, falta {moeda0(g.materialFaltante)}
+      </div>
+      <div style={{ width: '100%', height: 34 }}>
+        <ResponsiveContainer>
+          <BarChart data={dadosMaterial} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+            <XAxis type="number" hide />
+            <YAxis type="category" dataKey="po" hide />
+            <Tooltip formatter={(v) => moeda0(v)} />
+            <Bar dataKey="Comprado" stackId="m" fill="var(--aqua)" />
+            <Bar dataKey="Faltante" stackId="m" fill="var(--nevoa)" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
