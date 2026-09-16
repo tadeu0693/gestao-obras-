@@ -22,6 +22,7 @@ const P = {
   consolidado: 'M12 3L3 8l9 5 9-5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5',
   pendencias: 'M12 3a6 6 0 0 0-6 6c0 5-2 6-2 6h16s-2-1-2-6a6 6 0 0 0-6-6zM10 19a2 2 0 0 0 4 0',
   'importar-sap': 'M12 15V4M8 8l4-4 4 4M4 13v4a2 2 0 0 0 2 2h4M20 13v4a2 2 0 0 0-2 2h-4',
+  dashboard: 'M4 19V10M10 19V4M16 19v-7M22 19H2',
 };
 export function Icone({ nome, tam = 18 }) {
   return (

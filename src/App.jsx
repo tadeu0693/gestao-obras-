@@ -3,6 +3,7 @@ import { api } from './lib/util.js';
 import { Icone, Simbolo } from './components.jsx';
 import Login from './pages/Login.jsx';
 import Painel from './pages/Painel.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Orcamentos from './pages/Orcamentos.jsx';
 import OrcamentoDetalhe from './pages/OrcamentoDetalhe.jsx';
 import Importar from './pages/Importar.jsx';
@@ -20,6 +21,7 @@ const VAZIO = { clientes: [], orcamentos: [], locais: [], estoque: [] };
 
 const NAV = [
   ['painel', 'Painel', 'painel'],
+  ['dashboard', 'Dashboard', 'dashboard'],
   ['pendencias', 'Pendências', 'pendencias'],
   ['orcamentos', 'Orçamentos', 'orcamentos'],
   ['importar', 'Importar proposta', 'importar'],
@@ -160,6 +162,7 @@ export default function App() {
   let conteudo;
   if (pagina === 'orcamentos' && param) conteudo = <OrcamentoDetalhe id={param} />;
   else if (pagina === 'pendencias') conteudo = <Pendencias />;
+  else if (pagina === 'dashboard') conteudo = <Dashboard />;
   else if (pagina === 'orcamentos') conteudo = <Orcamentos />;
   else if (pagina === 'importar') conteudo = <Importar />;
   else if (pagina === 'importar-sap') conteudo = <ImportarSap />;

@@ -156,6 +156,28 @@ select.status-sel { width: auto; padding: 4px 8px; font-size: 14px; }
 .selecao-resumo button { margin-left: auto; }
 tr.linha-marcada td { background: #eef6f6; }
 
+.progresso-pos { display: flex; flex-direction: column; gap: 16px; }
+.linha-progresso { padding: 12px; border-radius: 10px; cursor: pointer; }
+.linha-progresso:hover { background: #f7f9f9; }
+.linha-progresso-cab { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; gap: 10px; flex-wrap: wrap; }
+.barra-dupla { display: flex; flex-direction: column; gap: 4px; }
+.barra-rotulo { display: flex; justify-content: space-between; font-size: 13px; color: var(--texto-2); }
+.barra-fundo { height: 10px; border-radius: 6px; background: var(--nevoa); overflow: hidden; margin-bottom: 6px; }
+.barra-preenchida { height: 100%; border-radius: 6px; transition: width 0.3s; }
+.barra-preenchida.verde { background: var(--verde); }
+.barra-preenchida.aqua { background: var(--aqua); }
+
+.resumo-semana { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }
+.resumo-semana > div { display: flex; flex-direction: column; }
+.resumo-semana strong { font-size: 28px; font-weight: 700; }
+.resumo-semana span { font-size: 13px; color: var(--texto-2); }
+
+.lista-simples { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+
+.legenda-mapa { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--texto-2); }
+.legenda-mapa span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda-mapa i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
 /* ---------- régua de consumo (elemento principal do painel) ---------- */
 .regua { margin: 6px 0 4px; }
 .regua-numeros { display: flex; flex-wrap: wrap; gap: 8px 44px; margin-bottom: 14px; }
