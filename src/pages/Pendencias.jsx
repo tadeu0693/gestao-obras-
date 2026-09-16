@@ -1,12 +1,29 @@
+import { useEffect, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Pill } from '../components.jsx';
-import { filtrarPorCliente, pendencias, data, moeda0 } from '../lib/util.js';
+import { filtrarPorCliente, pendencias, data, moeda0, api } from '../lib/util.js';
+
+const LIMITE_ALERTA = 70; // % do M.O orçado a partir do qual já vale alertar
 
 export default function Pendencias() {
   const { dados, clienteId, nomeCliente } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
   const p = pendencias(d);
-  const total = p.locaisParados.length + p.orcamentosVencendo.length + p.terceirosPendentes.length;
+
+  const [mo, setMo] = useState(null); // null = ainda carregando/indisponível
+  useEffect(() => {
+    api('mo-integracao')
+      .then((r) => setMo(r.porPo || []))
+      .catch(() => setMo([]));
+  }, []);
+
+  const moAlerta = (mo || [])
+    .filter((r) => r.pctConsumido != null && r.pctConsumido >= LIMITE_ALERTA)
+    .filter((r) => !clienteId || d.orcamentos.some((o) => o.po === r.po))
+    .sort((a, b) => b.pctConsumido - a.pctConsumido);
+  const semRegra = [...new Set((mo || []).flatMap((r) => (r.composicoesSemRegra || []).map((c) => `PO ${r.po}: ${c}`)))];
+
+  const total = p.locaisParados.length + p.orcamentosVencendo.length + p.terceirosPendentes.length + moAlerta.length;
 
   return (
     <>
@@ -20,10 +37,35 @@ export default function Pendencias() {
         </div>
       </div>
 
+      {semRegra.length > 0 && (
+        <div className="bloco" style={{ borderColor: 'var(--amarelo)' }}>
+          <p className="pequeno-txt">
+            ⚠ Equipes alocadas sem valor de hora cadastrado — não entram na conta de M.O até você cadastrar em Configurações: {semRegra.join(' · ')}
+          </p>
+        </div>
+      )}
+
       {total === 0 ? (
         <div className="vazio">Nenhuma pendência encontrada — tudo em dia por aqui.</div>
       ) : (
         <div className="duas-col">
+          <Bloco titulo="M.O aproximando ou acima do limite" vazio="Nenhuma PO com M.O perto do orçado." qtd={moAlerta.length}>
+            {moAlerta.map((r) => (
+              <Linha key={r.po} onClick={() => navegar('orcamentos')}>
+                <div>
+                  <strong>PO {r.po}</strong>
+                  <div className="pequeno-txt muted">
+                    {r.horasNormais + r.horasExtras}h apontadas na Central de Alocação
+                  </div>
+                </div>
+                <span className={`tag ${r.pctConsumido > 100 ? 'falta' : 'sobra'}`}>{r.pctConsumido > 100 ? 'Estourado' : 'Perto do limite'}</span>
+                <strong className="num" style={{ color: r.pctConsumido > 100 ? 'var(--vermelho)' : undefined }}>
+                  {moeda0(r.custo)} de {moeda0(r.moOrcado)} ({r.pctConsumido}%)
+                </strong>
+              </Linha>
+            ))}
+          </Bloco>
+
           <Bloco titulo="Orçamentos vencendo ou vencidos" vazio="Nenhum orçamento vencendo nos próximos 30 dias." qtd={p.orcamentosVencendo.length}>
             {p.orcamentosVencendo.map((o) => (
               <Linha key={o.id} onClick={() => navegar(`orcamentos/${o.id}`)}>
