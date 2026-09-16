@@ -15,21 +15,35 @@ function redis() {
   return cliente;
 }
 
-// Tenta alguns nomes de chave possíveis (com e sem prefixo) até achar dados.
-async function hgetallTentativas(chaves) {
+// Tenta alguns nomes de chave possíveis, e os dois formatos de armazenamento
+// (hash por registro, ou uma string única com um JSON de array) até achar dados.
+async function lerLista(chaves) {
   const r = redis();
   for (const k of chaves) {
-    const v = await r.hgetall(k);
-    if (v && Object.keys(v).length) return Object.values(v);
+    try {
+      const v = await r.hgetall(k);
+      if (v && Object.keys(v).length) return Object.values(v);
+    } catch {
+      // não é um hash nessa chave — tenta como string/JSON abaixo
+    }
+    try {
+      const v = await r.get(k);
+      if (v) {
+        const arr = typeof v === 'string' ? JSON.parse(v) : v;
+        if (Array.isArray(arr) && arr.length) return arr;
+      }
+    } catch {
+      // segue tentando as próximas chaves
+    }
   }
   return [];
 }
 
 export async function lerAlocacao() {
   const [tecnicos, projetos, allocations] = await Promise.all([
-    hgetallTentativas(['tecnicos', 'aloc:tecnicos', 'ca:tecnicos']),
-    hgetallTentativas(['projetos', 'aloc:projetos', 'ca:projetos']),
-    hgetallTentativas(['allocations', 'aloc:allocations', 'ca:allocations']),
+    lerLista(['tecnicos', 'aloc:tecnicos', 'ca:tecnicos']),
+    lerLista(['projetos', 'aloc:projetos', 'ca:projetos']),
+    lerLista(['allocations', 'aloc:allocations', 'ca:allocations']),
   ]);
   return { tecnicos, projetos, allocations };
 }
