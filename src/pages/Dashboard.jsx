@@ -54,9 +54,22 @@ export default function Dashboard() {
     return { concluidosSemana, gastoSemana, vencendoSemana, proximosInicios };
   }, [d]);
 
+  const POR_SLIDE_PROGRESSO = 4;
+  const POR_SLIDE_CARDS = 6;
+  const chunk = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
+  const paginasProgresso = chunk(pos, POR_SLIDE_PROGRESSO);
+  const paginasCards = chunk(pos, POR_SLIDE_CARDS);
+
   const slides = [
-    { titulo: 'Progresso por PO', conteudo: <SlideProgresso pos={pos} nomeCliente={nomeCliente} /> },
-    { titulo: 'Orçamento e material por PO', conteudo: <SlideOrcamentoMaterial pos={pos} nomeCliente={nomeCliente} /> },
+    ...paginasProgresso.map((pagina, i) => ({
+      titulo: paginasProgresso.length > 1 ? `Progresso por PO (${i + 1}/${paginasProgresso.length})` : 'Progresso por PO',
+      conteudo: <SlideProgresso pos={pagina} nomeCliente={nomeCliente} />,
+    })),
+    ...paginasCards.map((pagina, i) => ({
+      titulo: paginasCards.length > 1 ? `Orçamento e material por PO (${i + 1}/${paginasCards.length})` : 'Orçamento e material por PO',
+      conteudo: <SlideOrcamentoMaterial pos={pagina} nomeCliente={nomeCliente} />,
+    })),
     { titulo: 'Essa semana e mapa da operação', conteudo: <SlideSemanaMapa semana={semana} locais={d.locais} /> },
   ];
 
@@ -239,18 +252,19 @@ function SlideSemanaMapa({ semana, locais }) {
         </div>
         {semana.concluidosSemana.length > 0 && (
           <ul className="lista-simples">
-            {semana.concluidosSemana.map((l) => (
+            {semana.concluidosSemana.slice(0, 4).map((l) => (
               <li key={l.id}>
                 ✓ {l.nome} <span className="muted pequeno-txt">— {data(l.atualizadoEm)}</span>
               </li>
             ))}
+            {semana.concluidosSemana.length > 4 && <li className="muted pequeno-txt">+ {semana.concluidosSemana.length - 4} mais</li>}
           </ul>
         )}
         {semana.proximosInicios.length > 0 && (
           <>
             <h3 style={{ margin: '18px 0 8px' }}>Próximos a começar</h3>
             <ul className="lista-simples">
-              {semana.proximosInicios.map((l) => (
+              {semana.proximosInicios.slice(0, 4).map((l) => (
                 <li key={l.id}>
                   {l.nome} <span className="muted pequeno-txt">— início previsto {data(l.inicioPrevisto)}</span>
                 </li>
@@ -320,5 +334,18 @@ function MapaOperacao({ locais }) {
     setTimeout(() => map.invalidateSize(), 50);
   }, [locais]);
 
-  return <div ref={divRef} style={{ height: 300, borderRadius: 10, overflow: 'hidden' }} />;
+  const semCoordenadas = !locais.some((l) => l.lat && l.lng);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div ref={divRef} style={{ height: 300, borderRadius: 10, overflow: 'hidden' }} />
+      {semCoordenadas && (
+        <div className="mapa-vazio">
+          Nenhum local com coordenadas ainda.
+          <br />
+          Importe o backup atualizado para ver os pontos aqui.
+        </div>
+      )}
+    </div>
+  );
 }
