@@ -1,5 +1,5 @@
-import { exigirUsuario } from './_lib/auth.js';
-import { lerTudo } from './_lib/db.js';
+import { exigirUsuario, PODE_EDITAR } from './_lib/auth.js';
+import { lerTudo, db } from './_lib/db.js';
 import { alocDisponivel, lerAlocacao } from './_lib/aloc.js';
 
 const categoriaCargo = (cargo) => (/AUXILIAR/i.test(cargo || '') ? 'auxiliar' : 'tecnico');
@@ -39,7 +39,8 @@ const extrairPo = (nomeProjeto) => {
 
 export default async function handler(req, res) {
   try {
-    const u = await exigirUsuario(req, res);
+    const sincronizar = req.query.sincronizar === '1';
+    const u = await exigirUsuario(req, res, sincronizar ? PODE_EDITAR : undefined);
     if (!u) return;
 
     if (!alocDisponivel()) {
@@ -107,7 +108,33 @@ export default async function handler(req, res) {
       .map((r) => ({ ...r, composicoesSemRegra: [...new Set(r.composicoesSemRegra)], pctConsumido: r.moOrcado ? Math.round((r.custo / r.moOrcado) * 100) : null }))
       .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
 
-    return res.json({ ok: true, atualizadoEm: new Date().toISOString(), porPo });
+    // Sincroniza: grava o custo calculado direto no item de M.O de cada orçamento,
+    // pra já contar como "Gasto" em todo o sistema (Painel, Dashboard, o próprio orçamento).
+    let sincronizados = 0;
+    if (sincronizar) {
+      const custoPorPo = Object.fromEntries(porPo.map((r) => [String(r.po), r.custo]));
+      const lote = {};
+      for (const o of dados.orcamentos || []) {
+        if (!o.po || !(o.po in custoPorPo)) continue;
+        const custo = custoPorPo[o.po];
+        let mudou = false;
+        const itens = (o.itens || []).map((i) => {
+          if (i.categoria !== 'M.O') return i;
+          const qtd = Number(i.qtd) || 1;
+          const valorUnitPago = custo / qtd;
+          if (Number(i.qtdComprada) === qtd && Number(i.valorUnitPago) === valorUnitPago) return i;
+          mudou = true;
+          return { ...i, qtdComprada: qtd, valorUnitPago, dataCompra: hoje };
+        });
+        if (mudou) {
+          lote[o.id] = { ...o, itens, atualizadoEm: new Date().toISOString(), atualizadoPor: 'Integração Central de Alocação' };
+          sincronizados++;
+        }
+      }
+      if (Object.keys(lote).length) await db.hset('orcamentos', lote);
+    }
+
+    return res.json({ ok: true, atualizadoEm: new Date().toISOString(), sincronizados, porPo });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ erro: e.message || 'Erro interno na integração.' });

@@ -3,20 +3,23 @@ import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
-import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem } from '../lib/util.js';
+import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem, api } from '../lib/util.js';
 
 const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const diasNaFrente = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const SEGUNDOS_POR_SLIDE = 12;
 
 export default function Dashboard() {
-  const { dados, clienteId, nomeCliente, recarregar } = useApp();
+  const { dados, clienteId, nomeCliente, recarregar, podeEditar } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
 
   useEffect(() => {
-    const t = setInterval(recarregar, 60_000);
+    const t = setInterval(async () => {
+      if (podeEditar) await api(`mo-integracao?sincronizar=1`).catch(() => {});
+      recarregar();
+    }, 60_000);
     return () => clearInterval(t);
-  }, [recarregar]);
+  }, [recarregar, podeEditar]);
 
   const pos = useMemo(
     () =>
