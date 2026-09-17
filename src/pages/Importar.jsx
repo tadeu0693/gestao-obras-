@@ -225,7 +225,7 @@ function contarCameras(itens) {
 }
 
 function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
-  const { dados } = useApp();
+  const { dados, toast } = useApp();
   const rs = entrada.rascunho;
   const [salvando, setSalvando] = useState(false);
   const set = (campo, v) => setRascunho((x) => ({ ...x, [campo]: v }));
@@ -241,6 +241,7 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
   const localExistente = rs.localExistenteId && dados.locais.find((l) => l.id === rs.localExistenteId);
 
   const confirmar = async () => {
+    if (rs.modo === 'atualizar' && !rs.duplicadoId) return toast('Escolha qual orçamento você quer atualizar, ou selecione "orçamento novo".', true);
     if (!rs.po && !confirm('Este orçamento está sem PO. Salvar mesmo assim?')) return;
     setSalvando(true);
     try {
@@ -274,17 +275,37 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
         )}
         {dup && (
           <div className="aviso" style={{ borderLeftColor: 'var(--aqua)', background: 'var(--aqua-claro)' }}>
-            <strong>Já existe o orçamento "{dup.nome}" na PO {dup.po}{dup.revisao ? ` (rev. ${dup.revisao})` : ''}.</strong>
-            <div style={{ display: 'flex', gap: 18, marginTop: 6, flexWrap: 'wrap' }}>
-              <label className="check">
-                <input type="radio" checked={rs.modo === 'atualizar'} onChange={() => set('modo', 'atualizar')} /> Atualizar o existente (mantém as compras já lançadas)
-              </label>
-              <label className="check">
-                <input type="radio" checked={rs.modo === 'novo'} onChange={() => set('modo', 'novo')} /> Salvar como um novo orçamento
-              </label>
-            </div>
+            <strong>
+              Encontrei automaticamente o orçamento "{dup.nome}" na PO {dup.po}
+              {dup.revisao ? ` (rev. ${dup.revisao})` : ''}.
+            </strong>
           </div>
         )}
+        <div className="aviso">
+          <strong>Isso é uma atualização de um orçamento já existente, ou um projeto novo?</strong>
+          <div style={{ display: 'flex', gap: 18, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <label className="check">
+              <input type="radio" checked={rs.modo === 'atualizar'} onChange={() => set('modo', 'atualizar')} /> Atualizar um existente (mantém as compras já lançadas)
+            </label>
+            <label className="check">
+              <input type="radio" checked={rs.modo === 'novo'} onChange={() => set('modo', 'novo')} /> Salvar como orçamento novo
+            </label>
+          </div>
+          {rs.modo === 'atualizar' && (
+            <Campo rotulo="Qual orçamento atualizar" className="largo" dica={clienteNovo ? 'escolha o cliente acima primeiro' : undefined}>
+              <select value={rs.duplicadoId || ''} onChange={(e) => set('duplicadoId', e.target.value || null)} disabled={clienteNovo}>
+                <option value="">Selecione o orçamento…</option>
+                {dados.orcamentos
+                  .filter((o) => o.clienteId === rs.clienteRef)
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.nome} {o.po ? `(PO ${o.po})` : '(sem PO)'}
+                    </option>
+                  ))}
+              </select>
+            </Campo>
+          )}
+        </div>
         <div className="grade">
           <Campo rotulo="Cliente" dica={clienteNovo ? 'será criado' : undefined}>
             <select value={rs.clienteRef} onChange={(e) => set('clienteRef', e.target.value)}>
