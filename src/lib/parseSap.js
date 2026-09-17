@@ -142,6 +142,13 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
   };
 }
 
+// Extrai só o número da PO de um texto de projeto, ignorando qualquer coisa
+// antes ou depois (ex: "PO7634 - Gerdau Pinda" -> "7634").
+const extrairPo = (texto) => {
+  const m = String(texto || '').match(/PO\s*0*([0-9]{3,})/i);
+  return m ? m[1] : String(texto || '').trim();
+};
+
 // Casa o consolidado do SAP com os orçamentos já existentes no sistema.
 // Retorna { atualizacoes: [{orcamentoId, po, itemId, descricao, qtdAntes, qtdNova, ...}], naoCasados: [...] }
 export function casarComOrcamentos(consolidado, orcamentos) {
@@ -149,7 +156,7 @@ export function casarComOrcamentos(consolidado, orcamentos) {
   const naoCasados = [];
 
   for (const g of consolidado) {
-    const poAlvo = String(g.projeto || '').replace(/^PO/i, '').trim();
+    const poAlvo = extrairPo(g.projeto);
     const orcs = orcamentos.filter((o) => String(o.po || '').trim() === poAlvo);
     let achou = false;
     for (const o of orcs) {

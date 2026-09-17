@@ -11,6 +11,7 @@ export default function ImportarSap() {
   const [excluir, setExcluir] = useState('4059');
   const [resultado, setResultado] = useState(null);
   const [marcadas, setMarcadas] = useState(() => new Set());
+  const [filtroPo, setFiltroPo] = useState('');
   const [aplicando, setAplicando] = useState(false);
   const [sobre, setSobre] = useState(false);
   const inputRef = useRef();
@@ -32,6 +33,7 @@ export default function ImportarSap() {
       const { atualizacoes, naoCasados } = casarComOrcamentos(consolidado, dados.orcamentos);
       setResultado({ atualizacoes, naoCasados, semCodigo, avisos, resumo, arquivo: file.name });
       setMarcadas(new Set(atualizacoes.map((a) => a.itemId)));
+      setFiltroPo('');
     } catch (err) {
       toast('Não consegui ler esse arquivo: ' + err.message, true);
     }
@@ -41,6 +43,16 @@ export default function ImportarSap() {
     setMarcadas((s) => {
       const n = new Set(s);
       n.has(itemId) ? n.delete(itemId) : n.add(itemId);
+      return n;
+    });
+
+  const atualizacoesFiltradas = (resultado?.atualizacoes || []).filter((a) => !filtroPo || String(a.po).toLowerCase().includes(filtroPo.trim().toLowerCase()));
+  const naoCasadosFiltrados = (resultado?.naoCasados || []).filter((g) => !filtroPo || String(g.projeto).toLowerCase().includes(filtroPo.trim().toLowerCase()));
+
+  const marcarTodos = (marcar) =>
+    setMarcadas((s) => {
+      const n = new Set(s);
+      atualizacoesFiltradas.forEach((a) => (marcar ? n.add(a.itemId) : n.delete(a.itemId)));
       return n;
     });
 
@@ -131,15 +143,31 @@ export default function ImportarSap() {
           </section>
 
           <section className="bloco">
+            <div className="filtros">
+              <label className="campo" style={{ maxWidth: 220 }}>
+                <span>Filtrar por PO</span>
+                <input value={filtroPo} onChange={(e) => setFiltroPo(e.target.value)} placeholder="ex: 7634" />
+              </label>
+              <button className="pequeno" style={{ alignSelf: 'flex-end' }} onClick={() => marcarTodos(true)}>
+                Marcar {filtroPo ? 'filtrados' : 'todos'}
+              </button>
+              <button className="pequeno" style={{ alignSelf: 'flex-end' }} onClick={() => marcarTodos(false)}>
+                Desmarcar {filtroPo ? 'filtrados' : 'todos'}
+              </button>
+            </div>
+          </section>
+
+          <section className="bloco">
             <div className="bloco-cab">
               <h2>
-                Itens que vão ser atualizados <span className="tag ok">{resultado.atualizacoes.length}</span>
+                Itens que vão ser atualizados <span className="tag ok">{atualizacoesFiltradas.length}</span>
+                {filtroPo && <span className="muted pequeno-txt"> de {resultado.atualizacoes.length} no total</span>}
               </h2>
               <button className="pequeno" disabled={aplicando || !marcadas.size} onClick={aplicar}>
                 {aplicando ? 'Aplicando…' : `Aplicar ${marcadas.size} atualização(ões)`}
               </button>
             </div>
-            {resultado.atualizacoes.length ? (
+            {atualizacoesFiltradas.length ? (
               <div className="tabela-wrap">
                 <table>
                   <thead>
@@ -154,7 +182,7 @@ export default function ImportarSap() {
                     </tr>
                   </thead>
                   <tbody>
-                    {resultado.atualizacoes.map((a) => (
+                    {atualizacoesFiltradas.map((a) => (
                       <tr key={a.itemId}>
                         <td>
                           <input type="checkbox" checked={marcadas.has(a.itemId)} onChange={() => alternar(a.itemId)} />
@@ -187,18 +215,19 @@ export default function ImportarSap() {
                 </table>
               </div>
             ) : (
-              <p className="muted pequeno-txt">Nenhum item bateu com os orçamentos cadastrados.</p>
+              <p className="muted pequeno-txt">{filtroPo ? 'Nenhum item bate com esse filtro.' : 'Nenhum item bateu com os orçamentos cadastrados.'}</p>
             )}
           </section>
 
           <section className="bloco">
             <h2>
-              Não encontrados nos orçamentos <span className="tag falta">{resultado.naoCasados.length}</span>
+              Não encontrados nos orçamentos <span className="tag falta">{naoCasadosFiltrados.length}</span>
+              {filtroPo && <span className="muted pequeno-txt"> de {resultado.naoCasados.length} no total</span>}
             </h2>
             <p className="pequeno-txt muted" style={{ marginBottom: 10 }}>
               Comprados no SAP para essas POs, mas sem item correspondente cadastrado no orçamento — não foram alterados. Adicione manualmente na tela do orçamento se fizer sentido.
             </p>
-            {resultado.naoCasados.length > 0 && (
+            {naoCasadosFiltrados.length > 0 && (
               <div className="tabela-wrap">
                 <table>
                   <thead>
@@ -211,7 +240,7 @@ export default function ImportarSap() {
                     </tr>
                   </thead>
                   <tbody>
-                    {resultado.naoCasados.map((g) => (
+                    {naoCasadosFiltrados.map((g) => (
                       <tr key={g.projeto + g.codigo}>
                         <td>{g.projeto}</td>
                         <td className="muted">{g.codigo}</td>
