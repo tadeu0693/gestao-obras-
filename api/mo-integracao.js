@@ -108,21 +108,36 @@ export default async function handler(req, res) {
       .map((r) => ({ ...r, composicoesSemRegra: [...new Set(r.composicoesSemRegra)], pctConsumido: r.moOrcado ? Math.round((r.custo / r.moOrcado) * 100) : null }))
       .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
 
-    // Sincroniza: grava o custo calculado direto no item de M.O de cada orçamento,
+    // Sincroniza: grava o custo calculado no(s) item(ns) de M.O de cada orçamento — se a PO
+    // tiver mais de uma linha de M.O, divide proporcionalmente ao peso orçado de cada linha,
     // pra já contar como "Gasto" em todo o sistema (Painel, Dashboard, o próprio orçamento).
     let sincronizados = 0;
     if (sincronizar) {
       const custoPorPo = Object.fromEntries(porPo.map((r) => [String(r.po), r.custo]));
+      const custoItem = (i) => (Number(i.qtd) || 0) * (Number(i.custoUnit) || 0);
+
+      // Peso orçado de M.O por PO, somando todas as linhas de todos os orçamentos daquela PO
+      const pesoMOporPo = {};
+      for (const o of dados.orcamentos || []) {
+        if (!o.po || !(o.po in custoPorPo)) continue;
+        for (const i of o.itens || []) {
+          if (i.categoria !== 'M.O') continue;
+          pesoMOporPo[o.po] = (pesoMOporPo[o.po] || 0) + custoItem(i);
+        }
+      }
+
       const lote = {};
       for (const o of dados.orcamentos || []) {
         if (!o.po || !(o.po in custoPorPo)) continue;
-        const custo = custoPorPo[o.po];
+        const custoTotal = custoPorPo[o.po];
+        const pesoTotal = pesoMOporPo[o.po] || 0;
         let mudou = false;
         const itens = (o.itens || []).map((i) => {
           if (i.categoria !== 'M.O') return i;
           const qtd = Number(i.qtd) || 1;
-          const valorUnitPago = custo / qtd;
-          if (Number(i.qtdComprada) === qtd && Number(i.valorUnitPago) === valorUnitPago) return i;
+          const fatia = pesoTotal ? custoItem(i) / pesoTotal : 0;
+          const valorUnitPago = (custoTotal * fatia) / qtd;
+          if (Number(i.qtdComprada) === qtd && Math.abs((Number(i.valorUnitPago) || 0) - valorUnitPago) < 0.01) return i;
           mudou = true;
           return { ...i, qtdComprada: qtd, valorUnitPago, dataCompra: hoje };
         });
