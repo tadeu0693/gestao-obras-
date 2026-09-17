@@ -128,7 +128,9 @@ function resolver(rs, dados) {
     if (c) clienteRef = c.id;
   }
   if (clienteRef === rs.clienteRef && !rs._pendente) return rs;
-  const dup = dados.orcamentos.find((x) => x.clienteId === clienteRef && String(x.po) === String(rs.po) && semAcento(x.nome) === semAcento(rs.nome));
+  // Duplicidade é por cliente + PO (o identificador que o resto do sistema já usa pra
+  // agrupar tudo) — não exige que o nome do arquivo/projeto seja idêntico entre versões.
+  const dup = dados.orcamentos.find((x) => x.clienteId === clienteRef && String(x.po) === String(rs.po) && rs.po);
   const loc = rs.local?.nome && dados.locais.find((l) => l.clienteId === clienteRef && String(l.po) === String(rs.po) && semAcento(l.nome) === semAcento(rs.local.nome));
   return { ...rs, clienteRef, _pendente: false, duplicadoId: dup?.id || null, modo: dup ? 'atualizar' : 'novo', localExistenteId: loc?.id || null };
 }
@@ -137,7 +139,7 @@ function montarRascunho(r, dados) {
   const o = r.orcamento;
   const cli = dados.clientes.find((c) => semAcento(c.nome) === semAcento(o.clienteNome));
   const clienteRef = cli ? cli.id : o.clienteNome ? `novo:${o.clienteNome}` : dados.clientes[0]?.id || 'novo:';
-  const dup = cli && dados.orcamentos.find((x) => x.clienteId === cli.id && String(x.po) === String(o.po) && semAcento(x.nome) === semAcento(o.nome));
+  const dup = cli && dados.orcamentos.find((x) => x.clienteId === cli.id && String(x.po) === String(o.po) && o.po);
   const localExistente =
     cli && r.localSugerido && dados.locais.find((l) => l.clienteId === cli.id && String(l.po) === String(o.po) && semAcento(l.nome) === semAcento(r.localSugerido));
   return {
