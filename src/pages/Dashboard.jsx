@@ -13,10 +13,14 @@ export default function Dashboard() {
   const { dados, clienteId, nomeCliente, recarregar, podeEditar } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
 
+  const [mo, setMo] = useState(null);
   useEffect(() => {
+    const buscar = () => api('mo-integracao').then((r) => setMo(r.porPo || [])).catch(() => setMo([]));
+    buscar();
     const t = setInterval(async () => {
       if (podeEditar) await api(`mo-integracao?sincronizar=1`).catch(() => {});
       recarregar();
+      buscar();
     }, 60_000);
     return () => clearInterval(t);
   }, [recarregar, podeEditar]);
@@ -54,6 +58,13 @@ export default function Dashboard() {
     [d],
   );
 
+  const moPorPo = useMemo(() => {
+    const posValidas = new Set(d.orcamentos.map((o) => o.po));
+    return (mo || [])
+      .filter((r) => posValidas.has(r.po) && (r.moOrcado || r.custo))
+      .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
+  }, [mo, d]);
+
   const semana = useMemo(() => {
     const corte = diasAtras(7);
     const concluidosSemana = d.locais.filter((l) => l.status === 'Concluída' && l.atualizadoEm && l.atualizadoEm.slice(0, 10) >= corte);
@@ -75,6 +86,7 @@ export default function Dashboard() {
 
   const paginasProgresso = chunk(pos, POR_SLIDE_PROGRESSO);
   const paginasCards = chunk(pos, POR_SLIDE_CARDS);
+  const paginasMO = chunk(moPorPo, POR_SLIDE_CARDS);
 
   const slides = [
     ...paginasProgresso.map((pagina, i) => ({
@@ -85,6 +97,12 @@ export default function Dashboard() {
       titulo: paginasCards.length > 1 ? `Orçamento e material por PO (${i + 1}/${paginasCards.length})` : 'Orçamento e material por PO',
       conteudo: <SlideOrcamentoMaterial pos={pagina} nomeCliente={nomeCliente} />,
     })),
+    ...(paginasMO.length
+      ? paginasMO.map((pagina, i) => ({
+          titulo: paginasMO.length > 1 ? `M.O por PO (${i + 1}/${paginasMO.length})` : 'M.O por PO',
+          conteudo: <SlideMO pos={pagina} />,
+        }))
+      : [{ titulo: 'M.O por PO', conteudo: <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p> }]),
     { titulo: 'Essa semana e mapa da operação', conteudo: <SlideSemanaMapa semana={semana} locais={d.locais} /> },
   ];
 
@@ -242,6 +260,54 @@ function CardOrcamentoPO({ g, nomeCliente }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+    </div>
+  );
+}
+
+function SlideMO({ pos }) {
+  if (!pos.length) return <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p>;
+  return (
+    <div className="grid-cards-po">
+      {pos.map((r) => (
+        <CardMO key={r.po} r={r} />
+      ))}
+    </div>
+  );
+}
+
+function CardMO({ r }) {
+  const estourado = r.pctConsumido != null && r.pctConsumido > 100;
+  const cor = estourado ? 'var(--vermelho)' : 'var(--verde)';
+  const pctMostrado = estourado ? 100 : r.pctConsumido || 0;
+  const dadosGauge = [{ value: pctMostrado, fill: cor }];
+  const horas = (r.horasNormais || 0) + (r.horasExtras || 0);
+
+  return (
+    <div className="card-po" onClick={() => navegar('orcamentos')}>
+      <div className="card-po-cab">
+        <strong>PO {r.po}</strong>
+        <span className="muted pequeno-txt">{horas.toLocaleString('pt-BR')}h apontadas</span>
+      </div>
+      <div className="gauge-wrap">
+        <ResponsiveContainer width="100%" height={130}>
+          <RadialBarChart innerRadius="72%" outerRadius="100%" data={dadosGauge} startAngle={90} endAngle={-270} barSize={12}>
+            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+            <RadialBar dataKey="value" cornerRadius={8} background={{ fill: 'var(--nevoa)' }} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div className="gauge-centro">
+          <strong style={{ color: cor }}>{r.pctConsumido == null ? '—' : estourado ? `+${r.pctConsumido - 100}%` : `${r.pctConsumido}%`}</strong>
+          <span>{estourado ? 'estourado' : 'do M.O'}</span>
+        </div>
+      </div>
+      <p className="pequeno-txt muted" style={{ textAlign: 'center', margin: '2px 0 6px' }}>
+        {moeda0(r.custo)} de {moeda0(r.moOrcado)}
+      </p>
+      {r.composicoesSemRegra?.length > 0 && (
+        <p className="pequeno-txt" style={{ color: 'var(--amarelo)', textAlign: 'center' }}>
+          {r.composicoesSemRegra.length} equipe(s) sem regra de valor
+        </p>
+      )}
     </div>
   );
 }
