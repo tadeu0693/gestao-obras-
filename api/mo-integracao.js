@@ -19,8 +19,6 @@ function* diasUteis(inicioISO, fimISO) {
   }
 }
 
-// Horas de um turno: usa horaInicio/horaFim quando informado (descontando 1h de almoço se
-// o turno tiver 6h ou mais); sem horário informado, considera dia inteiro padrão (8h já líquidas).
 function horasNoDia(a) {
   if (a.horaInicio && a.horaFim) {
     const [h1, m1] = a.horaInicio.split(':').map(Number);
@@ -81,7 +79,17 @@ export default async function handler(req, res) {
 
     const resultado = {};
     const garantePo = (po) => {
-      if (!resultado[po]) resultado[po] = { po, horasNormais: 0, horasExtras: 0, custo: 0, moOrcado: 0, composicoesSemRegra: [] };
+      if (!resultado[po]) resultado[po] = { 
+        po, 
+        horasNormais: 0, 
+        horasExtras: 0, 
+        hotel: 0,
+        refeicao: 0,
+        outros: 0,
+        custo: 0, 
+        moOrcado: 0, 
+        composicoesSemRegra: [] 
+      };
       return resultado[po];
     };
 
@@ -97,6 +105,35 @@ export default async function handler(req, res) {
       else r.custo += horasDoDia * valor;
     }
 
+    // Acumula hotel, refeição e outros por PO
+    for (const a of allocations) {
+      const po = poDoProjeto[a.projetoId];
+      if (!po) continue;
+      
+      const r = garantePo(po);
+      
+      // Hotel: soma valores de hotel de todos os períodos
+      if (a.hotel) {
+        r.hotel += Number(a.hotel) || 0;
+      }
+      
+      // Refeição: soma valores de refeição de todos os períodos
+      if (a.refeicao) {
+        r.refeicao += Number(a.refeicao) || 0;
+      }
+      
+      // Outros: soma valores de outros custos de todos os períodos
+      if (a.outros) {
+        r.outros += Number(a.outros) || 0;
+      }
+    }
+
+    // Atualiza custo total com hotel + refeição + outros
+    for (const po in resultado) {
+      const r = resultado[po];
+      r.custo += r.hotel + r.refeicao + r.outros;
+    }
+
     for (const o of dados.orcamentos || []) {
       if (!o.po) continue;
       const moOrcado = (o.itens || []).filter((i) => i.categoria === 'M.O').reduce((s, i) => s + (Number(i.qtd) || 0) * (Number(i.custoUnit) || 0), 0);
@@ -109,14 +146,13 @@ export default async function handler(req, res) {
       .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
 
     // Sincroniza: grava o custo calculado no(s) item(ns) de M.O de cada orçamento — se a PO
-    // tiver mais de uma linha de M.O, divide proporcionalmente ao peso orçado de cada linha,
-    // pra já contar como "Gasto" em todo o sistema (Painel, Dashboard, o próprio orçamento).
+    // tiver mais de uma linha de M.O, divide proporcionalmente ao peso orçado de cada linha.
+    // O custo agora inclui horas (normais + extras) + hotel + refeição
     let sincronizados = 0;
     if (sincronizar) {
       const custoPorPo = Object.fromEntries(porPo.map((r) => [String(r.po), r.custo]));
       const custoItem = (i) => (Number(i.qtd) || 0) * (Number(i.custoUnit) || 0);
 
-      // Peso orçado de M.O por PO, somando todas as linhas de todos os orçamentos daquela PO
       const pesoMOporPo = {};
       for (const o of dados.orcamentos || []) {
         if (!o.po || !(o.po in custoPorPo)) continue;

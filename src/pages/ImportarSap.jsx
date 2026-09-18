@@ -71,7 +71,14 @@ export default function ImportarSap() {
       const itens = o.itens.map((i) => {
         const u = upds.find((x) => x.itemId === i.id);
         if (!u) return i;
-        return { ...i, qtdComprada: u.qtdNova, valorUnitPago: u.precoNovo, dataCompra: u.dataNova || i.dataCompra };
+        return { 
+          ...i, 
+          qtdComprada: u.qtdNova, 
+          valorUnitPago: u.precoNovo, 
+          dataCompra: u.dataNova || i.dataCompra,
+          scNumeros: u.scNumeros || i.scNumeros,
+          pedidosNumeros: u.pedidosNumeros || i.pedidosNumeros,
+        };
       });
       await salvar('orcamentos', { ...o, itens });
     }
