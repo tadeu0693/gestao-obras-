@@ -82,9 +82,50 @@ export default function ImportarSap() {
       });
       await salvar('orcamentos', { ...o, itens });
     }
+    
+    // Grava o histórico de compras no rastreamento para consulta posterior
+    // Constrói registros únicos por SC+Pedido+Código
+    const historicoRegistros = {};
+    for (const h of resultado.historico || []) {
+      // Filtra apenas linhas de itens que foram atualizados
+      const foiAplicada = resultado.atualizacoes.some(
+        (a) => marcadas.has(a.itemId) && a.codigo === h.codigo && a.po === extrairPo(h.projeto)
+      );
+      if (!foiAplicada) continue;
+      
+      // Chave única: SC + Pedido + Código
+      const k = `${h.solicitacao}-${h.pedido}-${h.codigo}`;
+      if (!historicoRegistros[k]) {
+        historicoRegistros[k] = {
+          id: k.replace(/\s+/g, '').toLowerCase(),
+          projeto: h.projeto,
+          solicitacao: h.solicitacao,
+          pedido: h.pedido,
+          codigo: h.codigo,
+          descricao: h.descricao,
+          solicitante: h.solicitante,
+          data: h.data,
+          qtd: h.qtd,
+          preco: h.preco,
+          total: (Number(h.qtd) || 0) * (Number(h.preco) || 0),
+          importadoEm: new Date().toISOString(),
+        };
+      }
+    }
+    
+    if (Object.keys(historicoRegistros).length) {
+      await salvar('rastreamentoCompras', Object.values(historicoRegistros));
+    }
+    
     setAplicando(false);
-    toast(`${[...porOrcamento.values()].flat().length} itens atualizados.`);
+    toast(`${[...porOrcamento.values()].flat().length} itens atualizados${Object.keys(historicoRegistros).length ? ' e ' + Object.keys(historicoRegistros).length + ' entradas de rastreamento gravadas' : ''}.`);
     setResultado(null);
+  };
+  
+  // Extrai PO do nome do projeto (mesmo que em parseSap.js)
+  const extrairPo = (texto) => {
+    const m = String(texto || '').match(/PO\s*0*([0-9]{3,})/i);
+    return m ? m[1] : String(texto || '').trim();
   };
 
   if (!podeEditar) return <div className="bloco vazio">Seu perfil é somente leitura e não pode importar compras do SAP.</div>;

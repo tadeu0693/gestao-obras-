@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../App.jsx';
 import { Icone } from '../components.jsx';
@@ -7,7 +7,7 @@ import { parseSapCompras } from '../lib/parseSap.js';
 
 export default function RastreamentoCompras() {
   const { dados, toast } = useApp();
-  const [historico, setHistorico] = useState(null); // Linhas do SAP carregadas
+  const [historico, setHistorico] = useState(null); // Linhas carregadas (arquivo ou banco)
   const [marcadas, setMarcadas] = useState(() => new Set());
   const [filtros, setFiltros] = useState({
     po: '',
@@ -18,6 +18,14 @@ export default function RastreamentoCompras() {
     dataFim: '',
   });
   const inputRef = useRef();
+
+  // Carrega histórico do banco ao montar o componente
+  useEffect(() => {
+    const historicoArmazenado = dados?.rastreamentoCompras || [];
+    if (historicoArmazenado.length) {
+      setHistorico(historicoArmazenado);
+    }
+  }, [dados?.rastreamentoCompras]);
 
   const processar = async (files) => {
     const file = [...files].find((f) => /\.(xlsx|xlsm|xls)$/i.test(f.name));
@@ -110,6 +118,13 @@ export default function RastreamentoCompras() {
   return (
     <div style={{ padding: '1rem' }}>
       <h1>Rastreamento de Compras (SAP)</h1>
+      <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+        {historico ? (
+          <span style={{ color: '#2196F3' }}>✓ {historico.length} registros carregados do banco</span>
+        ) : (
+          <>Carregue um relatório SAP abaixo ou importe de um novo arquivo</>
+        )}
+      </p>
 
       <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '4px' }}>
         <h3 style={{ marginTop: 0 }}>Carregar Relatório SAP</h3>
