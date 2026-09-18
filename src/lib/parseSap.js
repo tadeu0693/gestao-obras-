@@ -9,6 +9,7 @@ const COL = {
   projeto: 0,
   nomeProjeto: 1,
   solicitacao: 4,
+  solicitante: 5, // Quem fez a solicitação
   codigoItem: 9,
   descricaoItem: 10,
   statusSolic: 13,
@@ -98,11 +99,13 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
       projeto: ultimoProjeto,
       nomeProjeto: ultimoNome,
       solicitacao,
+      solicitante: row[COL.solicitante] || '',
       codigo,
       descricao: row[COL.descricaoItem] || '',
       qtd: Number(row[COL.qtdPedido]) || 0,
       preco: Number(row[COL.precoPedido]) || 0,
       data: dataPedido,
+      pedido: row[COL.pedido],
     });
   }
 
@@ -136,6 +139,7 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
     consolidado,
     semCodigo,
     avisos,
+    historico: linhas, // Cada linha individual com SC, pedido, solicitante, data, qtd, preco
     resumo: {
       linhasLidas: aoa.length - 1,
       linhasValidas: linhas.length,
