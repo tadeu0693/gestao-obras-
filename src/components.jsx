@@ -45,19 +45,30 @@ export function Simbolo({ className }) {
 }
 
 // ---------- entradas ----------
-export function NumInput({ valor, onChange, className = 'num', ...resto }) {
+export function NumInput({ valor, onChange, className = 'num', moeda: comMoeda = false, ...resto }) {
   const [txt, setTxt] = useState(fmtEdit(valor));
-  useEffect(() => setTxt(fmtEdit(valor)), [valor]);
+  const [foco, setFoco] = useState(false);
+  useEffect(() => {
+    if (!foco) setTxt(fmtEdit(valor));
+  }, [valor, foco]);
   const commit = () => {
+    setFoco(false);
     const n = parseNum(txt);
     if (n !== (Number(valor) || 0)) onChange(n);
     else setTxt(fmtEdit(valor));
   };
+  // Fora de edição, campos de dinheiro aparecem sempre como R$ 0.000,00
+  const exibido = comMoeda && !foco ? (Number(valor) || 0 ? moeda(valor) : '') : txt;
   return (
     <input
       inputMode="decimal"
       className={className}
-      value={txt}
+      value={exibido}
+      onFocus={(e) => {
+        setFoco(true);
+        setTxt(fmtEdit(valor));
+        requestAnimationFrame(() => e.target.select());
+      }}
       onChange={(e) => setTxt(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -319,11 +330,11 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
                   <NumInput valor={i.qtd} onChange={(v) => set(i.id, 'qtd', v)} aria-label="Quantidade" />
                 </td>
                 <td>
-                  <NumInput valor={i.custoUnit} onChange={(v) => set(i.id, 'custoUnit', v)} aria-label="Custo unitário" />
+                  <NumInput moeda valor={i.custoUnit} onChange={(v) => set(i.id, 'custoUnit', v)} aria-label="Custo unitário" />
                 </td>
                 <td className="num">{moeda(custoItem(i))}</td>
                 <td>
-                  <NumInput valor={i.rob} onChange={(v) => set(i.id, 'rob', v)} aria-label="Venda (ROB)" />
+                  <NumInput moeda valor={i.rob} onChange={(v) => set(i.id, 'rob', v)} aria-label="Venda (ROB)" />
                 </td>
                 {compras && (
                   <>
@@ -340,7 +351,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
                       <input type="date" value={i.dataCompra || ''} onChange={(e) => set(i.id, 'dataCompra', e.target.value)} aria-label="Data da compra" />
                     </td>
                     <td>
-                      <NumInput valor={i.valorUnitPago} onChange={(v) => set(i.id, 'valorUnitPago', v)} aria-label="Valor unitário pago" />
+                      <NumInput moeda valor={i.valorUnitPago} onChange={(v) => set(i.id, 'valorUnitPago', v)} aria-label="Valor unitário pago" />
                     </td>
                     <td className="num" style={{ color: pagoItem(i) > custoItem(i) ? 'var(--vermelho)' : undefined }}>{pagoItem(i) ? moeda(pagoItem(i)) : '—'}</td>
                   </>

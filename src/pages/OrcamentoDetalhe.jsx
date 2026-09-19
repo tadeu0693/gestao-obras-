@@ -130,7 +130,7 @@ export default function OrcamentoDetalhe({ id }) {
               <input value={o.comercial || ''} onChange={(e) => set('comercial', e.target.value)} />
             </Campo>
             <Campo rotulo="Venda ao cliente" dica="ROB, R$">
-              <NumInput valor={o.robArquivo} onChange={(v) => set('robArquivo', v)} />
+              <NumInput moeda valor={o.robArquivo} onChange={(v) => set('robArquivo', v)} />
             </Campo>
             <Campo rotulo="Elaborado por">
               <input value={o.elaboradoPor || ''} onChange={(e) => set('elaboradoPor', e.target.value)} />

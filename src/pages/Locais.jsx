@@ -401,16 +401,16 @@ function LocalEditor({ local, aoFechar }) {
           <h3 style={{ marginBottom: 12 }}>Custos do local</h3>
           <div className="grade">
             <Campo rotulo="M.O por unidade" dica="R$">
-              <NumInput className="" valor={l.moUnit} onChange={(v) => set('moUnit', v)} />
+              <NumInput moeda className="" valor={l.moUnit} onChange={(v) => set('moUnit', v)} />
             </Campo>
             <Campo rotulo="Miscelâneas por unidade" dica="R$">
-              <NumInput className="" valor={l.miscUnit} onChange={(v) => set('miscUnit', v)} />
+              <NumInput moeda className="" valor={l.miscUnit} onChange={(v) => set('miscUnit', v)} />
             </Campo>
             <Campo rotulo="Valor terceiro" dica="R$ fechado">
-              <NumInput className="" valor={l.valorTerceiro} onChange={(v) => set('valorTerceiro', v)} />
+              <NumInput moeda className="" valor={l.valorTerceiro} onChange={(v) => set('valorTerceiro', v)} />
             </Campo>
             <Campo rotulo="Valor terceiro pago" dica={`saldo ${moeda0((l.valorTerceiro || 0) - (l.valorTerceiroPago || 0))}`}>
-              <NumInput className="" valor={l.valorTerceiroPago} onChange={(v) => set('valorTerceiroPago', v)} />
+              <NumInput moeda className="" valor={l.valorTerceiroPago} onChange={(v) => set('valorTerceiroPago', v)} />
             </Campo>
           </div>
         </section>
