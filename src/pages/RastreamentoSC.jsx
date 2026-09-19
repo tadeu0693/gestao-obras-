@@ -8,7 +8,7 @@ export default function RastreamentoSC() {
   const { dados, toast } = useApp();
   const [historico, setHistorico] = useState([]);
   const [marcadas, setMarcadas] = useState(() => new Set());
-  const [filtros, setFiltros] = useState({
+  const [filtrosInput, setFiltrosInput] = useState({
     po: '',
     sc: '',
     pedido: '',
@@ -16,6 +16,9 @@ export default function RastreamentoSC() {
     dataInicio: '',
     dataFim: '',
   });
+  const [filtros, setFiltros] = useState(filtrosInput);
+  const [pagina, setPagina] = useState(1);
+  const PAGE_SIZE = 100;
 
   // Carrega histórico do banco ao montar
   useEffect(() => {
@@ -23,6 +26,16 @@ export default function RastreamentoSC() {
     setHistorico(historicoArmazenado);
     setMarcadas(new Set());
   }, [dados?.rastreamentoCompras]);
+
+  // Debounce: só aplica o filtro 300ms depois de parar de digitar,
+  // pra não travar a digitação numa lista de milhares de linhas
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setFiltros(filtrosInput);
+      setPagina(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [filtrosInput]);
 
   const linhasFiltradas = useMemo(() => {
     if (!historico.length) return [];
@@ -50,6 +63,13 @@ export default function RastreamentoSC() {
 
   const somaValor = selecionadas.reduce((s, l) => s + (Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0)), 0);
   const somaQtd = selecionadas.reduce((s, l) => s + (Number(l.qtd) || 0), 0);
+
+  const totalPaginas = Math.max(1, Math.ceil(linhasFiltradas.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const linhasPagina = useMemo(
+    () => linhasFiltradas.slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE),
+    [linhasFiltradas, paginaAtual]
+  );
 
   const alternar = (linha) => {
     const k = linha.id || (linha.solicitacao + '|' + linha.pedido + '|' + linha.codigo);
@@ -108,49 +128,49 @@ export default function RastreamentoSC() {
             <input
               type="text"
               placeholder="Filtrar PO..."
-              value={filtros.po}
-              onChange={(e) => setFiltros({ ...filtros, po: e.target.value })}
+              value={filtrosInput.po}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, po: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <input
               type="text"
               placeholder="Filtrar SC..."
-              value={filtros.sc}
-              onChange={(e) => setFiltros({ ...filtros, sc: e.target.value })}
+              value={filtrosInput.sc}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, sc: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <input
               type="text"
               placeholder="Filtrar Pedido..."
-              value={filtros.pedido}
-              onChange={(e) => setFiltros({ ...filtros, pedido: e.target.value })}
+              value={filtrosInput.pedido}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, pedido: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <input
               type="text"
               placeholder="Filtrar Solicitante..."
-              value={filtros.solicitante}
-              onChange={(e) => setFiltros({ ...filtros, solicitante: e.target.value })}
+              value={filtrosInput.solicitante}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, solicitante: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <input
               type="date"
               placeholder="Data Início"
-              value={filtros.dataInicio}
-              onChange={(e) => setFiltros({ ...filtros, dataInicio: e.target.value })}
+              value={filtrosInput.dataInicio}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, dataInicio: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <input
               type="date"
               placeholder="Data Fim"
-              value={filtros.dataFim}
-              onChange={(e) => setFiltros({ ...filtros, dataFim: e.target.value })}
+              value={filtrosInput.dataFim}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, dataFim: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
           </div>
 
           <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => marcarTodos(true)}>✓ Marcar filtrados</button>
+            <button onClick={() => marcarTodos(true)}>✓ Marcar todos os filtrados ({linhasFiltradas.length})</button>
             <button onClick={() => marcarTodos(false)}>✗ Desmarcar</button>
             <button onClick={exportarSelecionadas} disabled={!selecionadas.length}>
               <Icone>📊</Icone> Exportar selecionadas
@@ -158,6 +178,11 @@ export default function RastreamentoSC() {
             <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>
               {selecionadas.length} selecionadas | {somaQtd} unidades | {moeda(somaValor)}
             </span>
+          </div>
+
+          <div style={{ marginBottom: '0.75rem', color: '#666', fontSize: '0.9rem' }}>
+            {linhasFiltradas.length} linha(s) encontrada(s) — mostrando {(paginaAtual - 1) * PAGE_SIZE + 1} a{' '}
+            {Math.min(paginaAtual * PAGE_SIZE, linhasFiltradas.length)}
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -184,7 +209,7 @@ export default function RastreamentoSC() {
                 </tr>
               </thead>
               <tbody>
-                {linhasFiltradas.map((l, i) => {
+                {linhasPagina.map((l, i) => {
                   const k = l.id || (l.solicitacao + '|' + l.pedido + '|' + l.codigo);
                   const marcada = marcadas.has(k);
                   const total = l.total || (Number(l.qtd) || 0) * (Number(l.preco) || 0);
@@ -217,6 +242,16 @@ export default function RastreamentoSC() {
               </tbody>
             </table>
           </div>
+
+          {totalPaginas > 1 && (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', marginTop: '1rem' }}>
+              <button disabled={paginaAtual <= 1} onClick={() => setPagina(1)}>« Primeira</button>
+              <button disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)}>‹ Anterior</button>
+              <span style={{ margin: '0 0.5rem' }}>Página {paginaAtual} de {totalPaginas}</span>
+              <button disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Próxima ›</button>
+              <button disabled={paginaAtual >= totalPaginas} onClick={() => setPagina(totalPaginas)}>Última »</button>
+            </div>
+          )}
 
           {linhasFiltradas.length === 0 && <p style={{ textAlign: 'center', color: '#999', padding: '2rem' }}>Nenhuma linha encontrada com esses filtros.</p>}
         </>
