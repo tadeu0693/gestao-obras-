@@ -7,7 +7,7 @@ import { parseSapCompras, casarComOrcamentos } from '../lib/parseSap.js';
 
 export default function ImportarSap() {
   const { dados, salvar, podeEditar, toast } = useApp();
-  const [ano, setAno] = useState(String(new Date().getFullYear()));
+  const [ano, setAno] = useState('');
   const [excluir, setExcluir] = useState('4059');
   const [resultado, setResultado] = useState(null);
   const [marcadas, setMarcadas] = useState(() => new Set());
@@ -29,7 +29,7 @@ export default function ImportarSap() {
         .map((s) => s.trim())
         .filter(Boolean)
         .map(Number);
-      const { consolidado, semCodigo, avisos, resumo } = parseSapCompras(aoa, { ano: ano ? Number(ano) : null, excluirSolicitacoes: excluirLista });
+      const { consolidado, semCodigo, avisos, resumo } = parseSapCompras(aoa, { ano: ano && ano.trim() ? Number(ano) : null, excluirSolicitacoes: excluirLista });
       const { atualizacoes, naoCasados } = casarComOrcamentos(consolidado, dados.orcamentos);
       setResultado({ atualizacoes, naoCasados, semCodigo, avisos, resumo, arquivo: file.name });
       setMarcadas(new Set(atualizacoes.map((a) => a.itemId)));
