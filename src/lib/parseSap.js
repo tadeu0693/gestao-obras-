@@ -3,19 +3,22 @@
 // data mais recente — pronto para atualizar os itens dos orçamentos.
 import * as XLSX from 'xlsx';
 
-// Posições fixas do relatório (o cabeçalho repete nomes como "Data do Lançamento" e
-// "Adicionado/Aprovado" em cada seção, então usamos posição em vez de nome).
+// Posições fixas da nova estrutura do relatório
 const COL = {
   projeto: 0,
   nomeProjeto: 1,
   solicitacao: 4,
-  solicitante: 5, // Quem fez a solicitação
+  solicitante: 7, // "Usuário Solicitação"
   codigoItem: 9,
   descricaoItem: 10,
+  qtdSolic: 11,
+  precoSolic: 12,
   statusSolic: 13,
   pedido: 14,
   dataPedido: 15,
+  usuarioPedido: 18,
   codigoPedido: 19,
+  descricaoPedido: 20,
   qtdPedido: 21,
   precoPedido: 22,
   statusPedido: 23,
