@@ -83,21 +83,16 @@ export default function ImportarSap() {
       await salvar('orcamentos', { ...o, itens });
     }
     
-    // Grava o histórico de compras no rastreamento para consulta posterior
-    // Constrói registros únicos por SC+Pedido+Código
+    // Grava TODO o histórico de compras (SC, Pedido, Solicitante, Data, Qtd, Preço)
+    // no rastreamento, independente de casar ou não com um orçamento existente.
+    // O usuário quer ver e validar todas as informações do SAP, não só as aplicadas.
     const historicoRegistros = {};
     for (const h of resultado.historico || []) {
-      // Filtra apenas linhas de itens que foram atualizados
-      const foiAplicada = resultado.atualizacoes.some(
-        (a) => marcadas.has(a.itemId) && a.codigo === h.codigo && a.po === extrairPo(h.projeto)
-      );
-      if (!foiAplicada) continue;
-      
       // Chave única: SC + Pedido + Código
       const k = `${h.solicitacao}-${h.pedido}-${h.codigo}`;
       if (!historicoRegistros[k]) {
         historicoRegistros[k] = {
-          id: k.replace(/\s+/g, '').toLowerCase(),
+          id: k.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 60),
           projeto: h.projeto,
           solicitacao: h.solicitacao,
           pedido: h.pedido,
@@ -114,18 +109,16 @@ export default function ImportarSap() {
     }
     
     if (Object.keys(historicoRegistros).length) {
-      await salvar('rastreamentoCompras', Object.values(historicoRegistros));
+      // Grava em lotes para não estourar limite de requisição
+      const registros = Object.values(historicoRegistros);
+      for (let i = 0; i < registros.length; i += 200) {
+        await salvar('rastreamentoCompras', registros.slice(i, i + 200));
+      }
     }
     
     setAplicando(false);
-    toast(`${[...porOrcamento.values()].flat().length} itens atualizados${Object.keys(historicoRegistros).length ? ' e ' + Object.keys(historicoRegistros).length + ' entradas de rastreamento gravadas' : ''}.`);
+    toast(`${[...porOrcamento.values()].flat().length} itens atualizados${Object.keys(historicoRegistros).length ? ' e ' + Object.keys(historicoRegistros).length + ' registros gravados em Rastreamento SC' : ''}.`);
     setResultado(null);
-  };
-  
-  // Extrai PO do nome do projeto (mesmo que em parseSap.js)
-  const extrairPo = (texto) => {
-    const m = String(texto || '').match(/PO\s*0*([0-9]{3,})/i);
-    return m ? m[1] : String(texto || '').trim();
   };
 
   if (!podeEditar) return <div className="bloco vazio">Seu perfil é somente leitura e não pode importar compras do SAP.</div>;
