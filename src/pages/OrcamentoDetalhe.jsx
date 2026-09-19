@@ -298,12 +298,18 @@ function BlocoMO({ po }) {
                   <td>Horas ({(r.horasNormais || 0) + (r.horasExtras || 0)}h, sendo {r.horasExtras || 0}h extras)</td>
                   <td className="num">{moeda(r.custo - (r.hotel || 0) - (r.refeicao || 0) - (r.outros || 0) - (r.terceiros || 0))}</td>
                 </tr>
-                {(r.hotel > 0 || r.refeicao > 0 || r.outros > 0) && (
-                  <tr>
-                    <td>Hotel / refeição / outros</td>
-                    <td className="num">{moeda((r.hotel || 0) + (r.refeicao || 0) + (r.outros || 0))}</td>
-                  </tr>
-                )}
+                <tr>
+                  <td>Hotel</td>
+                  <td className="num">{moeda(r.hotel || 0)}</td>
+                </tr>
+                <tr>
+                  <td>Refeição</td>
+                  <td className="num">{moeda(r.refeicao || 0)}</td>
+                </tr>
+                <tr>
+                  <td>Outros</td>
+                  <td className="num">{moeda(r.outros || 0)}</td>
+                </tr>
                 <tr>
                   <td>Serviços de terceiros (SC){r.terceirosLinhas ? ` — ${r.terceirosLinhas} linha(s)` : ''}</td>
                   <td className="num">{moeda(r.terceiros || 0)}</td>
