@@ -108,27 +108,35 @@ export default async function handler(req, res) {
       else r.custo += horasDoDia * valor;
     }
 
-    // Acumula hotel, refeição e outros por PO
+    // Acumula hotel, refeição e outros por PO.
+    // Na Central de Alocação as despesas ficam em a.despesas = [{tipo, data, valor}],
+    // com tipo em 'Hotel' | 'Refeição' | 'Outro'. Os campos soltos (a.hotel, a.refeicao,
+    // a.outros) são aceitos por compatibilidade com lançamentos antigos.
+    const tipoDespesa = (t) => {
+      const n = String(t || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+      if (n.startsWith('HOTEL')) return 'hotel';
+      if (n.startsWith('REFEIC')) return 'refeicao';
+      return 'outros';
+    };
+
     for (const a of allocations) {
       const po = poDoProjeto[a.projetoId];
       if (!po) continue;
-      
+
       const r = garantePo(po);
-      
-      // Hotel: soma valores de hotel de todos os períodos
-      if (a.hotel) {
-        r.hotel += Number(a.hotel) || 0;
+
+      for (const d of a.despesas || []) {
+        const v = Number(d.valor) || 0;
+        if (!v) continue;
+        r[tipoDespesa(d.tipo)] += v;
       }
-      
-      // Refeição: soma valores de refeição de todos os períodos
-      if (a.refeicao) {
-        r.refeicao += Number(a.refeicao) || 0;
-      }
-      
-      // Outros: soma valores de outros custos de todos os períodos
-      if (a.outros) {
-        r.outros += Number(a.outros) || 0;
-      }
+
+      if (a.hotel) r.hotel += Number(a.hotel) || 0;
+      if (a.refeicao) r.refeicao += Number(a.refeicao) || 0;
+      if (a.outros) r.outros += Number(a.outros) || 0;
     }
 
     // Serviços de terceiros comprados via SC/SAP (Rastreamento SC) entram no custo de M.O.
