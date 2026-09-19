@@ -1,13 +1,12 @@
-import { useRef, useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../App.jsx';
 import { Icone } from '../components.jsx';
-import { moeda, numero, data as formatData } from '../lib/util.js';
-import { parseSapCompras } from '../lib/parseSap.js';
+import { moeda, numero } from '../lib/util.js';
 
-export default function RastreamentoCompras() {
+export default function RastreamentoSC() {
   const { dados, toast } = useApp();
-  const [historico, setHistorico] = useState(null); // Linhas carregadas (arquivo ou banco)
+  const [historico, setHistorico] = useState([]);
   const [marcadas, setMarcadas] = useState(() => new Set());
   const [filtros, setFiltros] = useState({
     po: '',
@@ -17,39 +16,16 @@ export default function RastreamentoCompras() {
     dataInicio: '',
     dataFim: '',
   });
-  const inputRef = useRef();
 
-  // Carrega histórico do banco ao montar o componente
+  // Carrega histórico do banco ao montar
   useEffect(() => {
     const historicoArmazenado = dados?.rastreamentoCompras || [];
-    if (historicoArmazenado.length) {
-      setHistorico(historicoArmazenado);
-    }
+    setHistorico(historicoArmazenado);
+    setMarcadas(new Set());
   }, [dados?.rastreamentoCompras]);
 
-  const processar = async (files) => {
-    const file = [...files].find((f) => /\.(xlsx|xlsm|xls)$/i.test(f.name));
-    if (!file) return toast('Envie um arquivo .xlsx, .xlsm ou .xls', true);
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array', cellDates: true, bookVBA: false });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
-      const { historico: linhas, avisos } = parseSapCompras(aoa, { ano: null });
-      setHistorico(linhas);
-      setMarcadas(new Set());
-      setFiltros({ po: '', sc: '', pedido: '', solicitante: '', dataInicio: '', dataFim: '' });
-      if (avisos.length) {
-        avisos.forEach((a) => toast('⚠️ ' + a));
-      }
-      toast(`${linhas.length} linhas carregadas.`);
-    } catch (err) {
-      toast('Erro ao ler arquivo: ' + err.message, true);
-    }
-  };
-
   const linhasFiltradas = useMemo(() => {
-    if (!historico) return [];
+    if (!historico.length) return [];
     return historico.filter((l) => {
       const po = String(l.projeto || '').toLowerCase();
       const sc = String(l.solicitacao || '').toLowerCase();
@@ -68,15 +44,15 @@ export default function RastreamentoCompras() {
   }, [historico, filtros]);
 
   const selecionadas = useMemo(
-    () => linhasFiltradas.filter((l) => marcadas.has(l.solicitacao + '|' + l.pedido + '|' + l.codigo)),
+    () => linhasFiltradas.filter((l) => marcadas.has(l.id || (l.solicitacao + '|' + l.pedido + '|' + l.codigo))),
     [linhasFiltradas, marcadas]
   );
 
-  const somaValor = selecionadas.reduce((s, l) => s + (Number(l.qtd) || 0) * (Number(l.preco) || 0), 0);
+  const somaValor = selecionadas.reduce((s, l) => s + (Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0)), 0);
   const somaQtd = selecionadas.reduce((s, l) => s + (Number(l.qtd) || 0), 0);
 
   const alternar = (linha) => {
-    const k = linha.solicitacao + '|' + linha.pedido + '|' + linha.codigo;
+    const k = linha.id || (linha.solicitacao + '|' + linha.pedido + '|' + linha.codigo);
     setMarcadas((s) => {
       const n = new Set(s);
       n.has(k) ? n.delete(k) : n.add(k);
@@ -87,7 +63,7 @@ export default function RastreamentoCompras() {
   const marcarTodos = (marcar) => {
     if (marcar) {
       const n = new Set(marcadas);
-      linhasFiltradas.forEach((l) => n.add(l.solicitacao + '|' + l.pedido + '|' + l.codigo));
+      linhasFiltradas.forEach((l) => n.add(l.id || (l.solicitacao + '|' + l.pedido + '|' + l.codigo)));
       setMarcadas(n);
     } else {
       setMarcadas(new Set());
@@ -106,42 +82,27 @@ export default function RastreamentoCompras() {
       'Data': l.data,
       'Qtd': l.qtd,
       'Preço Unit.': l.preco,
-      'Total': (Number(l.qtd) || 0) * (Number(l.preco) || 0),
+      'Total': l.total || (Number(l.qtd) || 0) * (Number(l.preco) || 0),
     }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Compras');
-    XLSX.writeFile(wb, `rastreamento-compras-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'SC');
+    XLSX.writeFile(wb, `rastreamento-sc-${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast('Exportado com sucesso.');
   };
 
   return (
     <div style={{ padding: '1rem' }}>
-      <h1>Rastreamento de Compras (SAP)</h1>
+      <h1>Rastreamento SC</h1>
       <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-        {historico ? (
-          <span style={{ color: '#2196F3' }}>✓ {historico.length} registros carregados do banco</span>
+        {historico.length > 0 ? (
+          <span style={{ color: '#2196F3' }}>✓ {historico.length} registros carregados do SAP</span>
         ) : (
-          <>Carregue um relatório SAP abaixo ou importe de um novo arquivo</>
+          <span style={{ color: '#999' }}>Nenhum dado importado ainda. Importe um relatório SAP para ver as informações aqui.</span>
         )}
       </p>
 
-      <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f5f5f5', borderRadius: '4px' }}>
-        <h3 style={{ marginTop: 0 }}>Carregar Relatório SAP</h3>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".xlsx,.xlsm,.xls"
-          onChange={(e) => processar(e.target.files)}
-          style={{ display: 'none' }}
-        />
-        <button onClick={() => inputRef.current?.click()}>
-          <Icone>📁</Icone> Selecionar arquivo
-        </button>
-        {historico && <span style={{ marginLeft: '1rem', color: '#666' }}>{historico.length} linhas carregadas</span>}
-      </div>
-
-      {historico && (
+      {historico.length > 0 && (
         <>
           <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             <input
@@ -188,14 +149,14 @@ export default function RastreamentoCompras() {
             />
           </div>
 
-          <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => marcarTodos(true)}>✓ Marcar filtrados</button>
             <button onClick={() => marcarTodos(false)}>✗ Desmarcar</button>
             <button onClick={exportarSelecionadas} disabled={!selecionadas.length}>
               <Icone>📊</Icone> Exportar selecionadas
             </button>
             <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>
-              {selecionadas.length} linhas | {somaQtd} unidades | {moeda(somaValor)}
+              {selecionadas.length} selecionadas | {somaQtd} unidades | {moeda(somaValor)}
             </span>
           </div>
 
@@ -224,9 +185,9 @@ export default function RastreamentoCompras() {
               </thead>
               <tbody>
                 {linhasFiltradas.map((l, i) => {
-                  const k = l.solicitacao + '|' + l.pedido + '|' + l.codigo;
+                  const k = l.id || (l.solicitacao + '|' + l.pedido + '|' + l.codigo);
                   const marcada = marcadas.has(k);
-                  const total = (Number(l.qtd) || 0) * (Number(l.preco) || 0);
+                  const total = l.total || (Number(l.qtd) || 0) * (Number(l.preco) || 0);
                   return (
                     <tr
                       key={i}
@@ -238,8 +199,8 @@ export default function RastreamentoCompras() {
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>
                         <input type="checkbox" checked={marcada} onChange={() => alternar(l)} />
                       </td>
-                      <td style={{ padding: '0.5rem' }}>{l.projeto}</td>
-                      <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold' }}>{l.solicitacao}</td>
+                      <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{l.projeto}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', color: '#1976D2' }}>{l.solicitacao}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>{l.pedido}</td>
                       <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{l.codigo}</td>
                       <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{l.descricao}</td>
@@ -247,7 +208,7 @@ export default function RastreamentoCompras() {
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>{l.data}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{numero(l.qtd)}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{moeda(l.preco)}</td>
-                      <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: marcada ? 'bold' : 'normal' }}>
+                      <td style={{ padding: '0.5rem', textAlign: 'right', fontWeight: marcada ? 'bold' : 'normal', color: marcada ? '#2196F3' : 'inherit' }}>
                         {moeda(total)}
                       </td>
                     </tr>

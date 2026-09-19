@@ -8,7 +8,7 @@ import Orcamentos from './pages/Orcamentos.jsx';
 import OrcamentoDetalhe from './pages/OrcamentoDetalhe.jsx';
 import Importar from './pages/Importar.jsx';
 import ImportarSap from './pages/ImportarSap.jsx';
-import RastreamentoCompras from './pages/RastreamentoCompras.jsx';
+import RastreamentoSC from './pages/RastreamentoSC.jsx';
 import Locais from './pages/Locais.jsx';
 import Consolidado from './pages/Consolidado.jsx';
 import Pendencias from './pages/Pendencias.jsx';
@@ -27,7 +27,7 @@ const NAV = [
   ['orcamentos', 'Orçamentos', 'orcamentos'],
   ['importar', 'Importar proposta', 'importar'],
   ['importar-sap', 'Importar SAP', 'importar-sap'],
-  ['rastreamento-compras', 'Rastreamento de Compras', 'rastreamento-compras'],
+  ['rastreamento-sc', 'Rastreamento SC', 'rastreamento-sc'],
   ['locais', 'Locais e obras', 'locais'],
   ['consolidado', 'Consolidado', 'consolidado'],
   ['clientes', 'Clientes', 'clientes'],
@@ -177,7 +177,7 @@ export default function App() {
   else if (pagina === 'orcamentos') conteudo = <Orcamentos />;
   else if (pagina === 'importar') conteudo = <Importar />;
   else if (pagina === 'importar-sap') conteudo = <ImportarSap />;
-  else if (pagina === 'rastreamento-compras') conteudo = <RastreamentoCompras />;
+  else if (pagina === 'rastreamento-sc') conteudo = <RastreamentoSC />;
   else if (pagina === 'locais') conteudo = <Locais abrirId={param} />;
   else if (pagina === 'consolidado') conteudo = <Consolidado />;
   else if (pagina === 'clientes') conteudo = <Clientes />;
