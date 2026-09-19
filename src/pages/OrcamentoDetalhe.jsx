@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, navegar } from '../App.jsx';
 import { Campo, Icone, ItensTabela, Totais, Pill, NumInput } from '../components.jsx';
-import { totaisOrc, moeda, moeda0, pct, STATUS_ORC, exportarExcel, custoItem, pagoItem } from '../lib/util.js';
+import { totaisOrc, moeda, moeda0, pct, STATUS_ORC, exportarExcel, custoItem, pagoItem, api } from '../lib/util.js';
 
 export default function OrcamentoDetalhe({ id }) {
   const { dados, salvar, excluir, podeEditar, nomeCliente, toast } = useApp();
@@ -154,6 +154,8 @@ export default function OrcamentoDetalhe({ id }) {
         </fieldset>
       </section>
 
+      <BlocoMO po={o.po} />
+
       <div className="duas-col" style={{ marginBottom: 20 }}>
         <section className="bloco">
           <div className="bloco-cab">
@@ -228,5 +230,109 @@ export default function OrcamentoDetalhe({ id }) {
         </div>
       )}
     </>
+  );
+}
+
+// Mostra de onde vem o custo de M.O desta PO (Central de Alocação + serviços de terceiros
+// comprados via SC no SAP) e permite forçar a sincronização com os itens de M.O.
+function BlocoMO({ po }) {
+  const { podeEditar, toast, recarregar } = useApp();
+  const [r, setR] = useState(undefined); // undefined = carregando
+  const [erro, setErro] = useState('');
+  const [sinc, setSinc] = useState(false);
+
+  const buscar = async (sincronizar = false) => {
+    setErro('');
+    try {
+      const res = await api(`mo-integracao${sincronizar ? '?sincronizar=1' : ''}`);
+      setR((res.porPo || []).find((x) => String(x.po) === String(po)) || null);
+      return res;
+    } catch (e) {
+      setErro(e.message || 'Falha ao consultar a integração de M.O.');
+      setR(null);
+    }
+  };
+
+  useEffect(() => {
+    if (po) buscar(false);
+    else setR(null);
+  }, [po]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sincronizar = async () => {
+    setSinc(true);
+    try {
+      const res = await buscar(true);
+      if (res) {
+        await recarregar();
+        toast(res.sincronizados ? `${res.sincronizados} orçamento(s) atualizado(s).` : 'Nada mudou — os itens de M.O já estavam com o valor apurado.');
+      }
+    } finally {
+      setSinc(false);
+    }
+  };
+
+  if (!po) return null;
+  if (r === undefined) return null;
+
+  return (
+    <section className="bloco" style={{ marginBottom: 20 }}>
+      <div className="bloco-cab">
+        <div>
+          <h2>M.O apurada da PO {po}</h2>
+          <p>Horas da Central de Alocação + serviços de terceiros comprados via SC no SAP.</p>
+        </div>
+        {podeEditar && (
+          <button className="pequeno" onClick={sincronizar} disabled={sinc}>
+            {sinc ? 'Sincronizando…' : 'Sincronizar agora'}
+          </button>
+        )}
+      </div>
+      {erro && <p className="pequeno-txt" style={{ color: 'var(--vermelho)' }}>{erro}</p>}
+      {!erro && !r && <p className="muted pequeno-txt">Nada apurado para esta PO ainda — sem alocação na Central e sem serviço de terceiro nas SCs importadas.</p>}
+      {r && (
+        <>
+          <div className="tabela-wrap">
+            <table>
+              <tbody>
+                <tr>
+                  <td>Horas ({(r.horasNormais || 0) + (r.horasExtras || 0)}h, sendo {r.horasExtras || 0}h extras)</td>
+                  <td className="num">{moeda(r.custo - (r.hotel || 0) - (r.refeicao || 0) - (r.outros || 0) - (r.terceiros || 0))}</td>
+                </tr>
+                {(r.hotel > 0 || r.refeicao > 0 || r.outros > 0) && (
+                  <tr>
+                    <td>Hotel / refeição / outros</td>
+                    <td className="num">{moeda((r.hotel || 0) + (r.refeicao || 0) + (r.outros || 0))}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td>Serviços de terceiros (SC){r.terceirosLinhas ? ` — ${r.terceirosLinhas} linha(s)` : ''}</td>
+                  <td className="num">{moeda(r.terceiros || 0)}</td>
+                </tr>
+                <tr>
+                  <td><strong>Total apurado</strong></td>
+                  <td className="num"><strong>{moeda(r.custo)}</strong></td>
+                </tr>
+                <tr>
+                  <td>M.O orçada (todas as OPs desta PO)</td>
+                  <td className="num" style={{ color: r.pctConsumido > 100 ? 'var(--vermelho)' : undefined }}>
+                    {moeda(r.moOrcado)} {r.pctConsumido != null && `(${r.pctConsumido}% consumido)`}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {r.semLinhaMO && (
+            <p className="pequeno-txt" style={{ color: 'var(--amarelo)' }}>
+              ⚠ Esta PO não tem nenhum item com categoria <strong>M.O</strong> no orçamento — o valor apurado não tem onde ser lançado.
+            </p>
+          )}
+          {r.composicoesSemRegra?.length > 0 && (
+            <p className="pequeno-txt" style={{ color: 'var(--amarelo)' }}>
+              ⚠ Equipes sem valor de hora cadastrado (não entram na conta): {r.composicoesSemRegra.join(' · ')}
+            </p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
