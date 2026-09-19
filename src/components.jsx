@@ -224,6 +224,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
     onChange([...itens, { id: uid(), grupo: 'Equipamentos', categoria: 'Eletrônico', codigo: '', descricao: '', unidade: 'PÇ', qtd: 1, custoUnit: 0, rob: 0, qtdComprada: 0, dataCompra: '', valorUnitPago: 0 }]);
 
   const totCusto = itens.reduce((s, i) => s + custoItem(i), 0);
+  const totCustoUnit = itens.reduce((s, i) => s + (Number(i.custoUnit) || 0), 0);
   const totRob = itens.reduce((s, i) => s + (Number(i.rob) || 0), 0);
   const totPago = itens.reduce((s, i) => s + pagoItem(i), 0);
   const totFaltante = itens.reduce((s, i) => s + Math.max((Number(i.qtd) || 0) - (Number(i.qtdComprada) || 0), 0), 0);
@@ -231,6 +232,7 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
 
   const marcados = itens.filter((i) => selecionados.has(i.id));
   const selCusto = marcados.reduce((s, i) => s + custoItem(i), 0);
+  const selCustoUnit = marcados.reduce((s, i) => s + (Number(i.custoUnit) || 0), 0);
   const selRob = marcados.reduce((s, i) => s + (Number(i.rob) || 0), 0);
   const selPago = marcados.reduce((s, i) => s + pagoItem(i), 0);
 
@@ -240,6 +242,9 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
         <div className="selecao-resumo">
           <span>
             <strong>{marcados.length}</strong> item{marcados.length !== 1 && 's'} selecionado{marcados.length !== 1 && 's'}
+          </span>
+          <span>
+            Custo unit.: <strong>{moeda(selCustoUnit)}</strong>
           </span>
           <span>
             Custo: <strong>{moeda(selCusto)}</strong>
@@ -357,9 +362,10 @@ export function ItensTabela({ itens, onChange, compras = true, podeEditar = true
                   </button>
                 )}
               </td>
-              <td colSpan={5} className="num muted">
+              <td colSpan={4} className="num muted">
                 {itens.length} itens
               </td>
+              <td className="num">{moeda(totCustoUnit)}</td>
               <td className="num">{moeda(totCusto)}</td>
               <td className="num">{totRob ? moeda(totRob) : '—'}</td>
               {compras && (
