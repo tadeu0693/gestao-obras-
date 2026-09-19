@@ -319,6 +319,12 @@ function BlocoMO({ po }) {
                   <td className="num"><strong>{moeda(r.custo)}</strong></td>
                 </tr>
                 <tr>
+                  <td className="muted">
+                    Fretes e transporte (SC){r.fretesLinhas ? ` — ${r.fretesLinhas} linha(s)` : ''} — fora do M.O
+                  </td>
+                  <td className="num muted">{moeda(r.fretes || 0)}</td>
+                </tr>
+                <tr>
                   <td>M.O orçada (todas as OPs desta PO)</td>
                   <td className="num" style={{ color: r.pctConsumido > 100 ? 'var(--vermelho)' : undefined }}>
                     {moeda(r.moOrcado)} {r.pctConsumido != null && `(${r.pctConsumido}% consumido)`}

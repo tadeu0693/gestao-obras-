@@ -106,17 +106,18 @@ function TabelaMO() {
 
 function ServicosTerceiros() {
   const { dados, salvar, excluir, podeEditar, toast } = useApp();
-  const [novo, setNovo] = useState({ tipo: 'codigo', valor: '' });
+  const [novo, setNovo] = useState({ grupo: 'terceiro', tipo: 'codigo', valor: '' });
   const regras = [...(dados.moTerceiros || [])];
   const rotulo = { codigo: 'Código SAP', termo: 'Termo na descrição', excecao: 'Exceção (não contar)' };
+  const rotuloGrupo = { terceiro: 'Serviço de terceiro (M.O)', frete: 'Frete / transporte' };
 
   const adicionar = async () => {
     const v = String(novo.valor || '').trim();
     if (!v) return toast('Informe o código ou termo.', true);
-    if (regras.some((r) => r.tipo === novo.tipo && String(r.valor).trim().toLowerCase() === v.toLowerCase()))
+    if (regras.some((r) => (r.grupo || 'terceiro') === novo.grupo && r.tipo === novo.tipo && String(r.valor).trim().toLowerCase() === v.toLowerCase()))
       return toast('Essa regra já existe.', true);
-    await salvar('moTerceiros', { id: uid(), tipo: novo.tipo, valor: v });
-    setNovo({ tipo: 'codigo', valor: '' });
+    await salvar('moTerceiros', { id: uid(), grupo: novo.grupo, tipo: novo.tipo, valor: v });
+    setNovo({ grupo: 'terceiro', tipo: 'codigo', valor: '' });
   };
 
   const remover = async (r) => {
@@ -128,11 +129,13 @@ function ServicosTerceiros() {
     <section className="bloco">
       <div className="bloco-cab">
         <div>
-          <h2>Serviços de terceiros (M.O comprada via SC)</h2>
+          <h2>Classificação das compras via SC</h2>
           <p>
-            Compras do SAP que são mão de obra contratada entram no custo de M.O da PO, somadas às horas da Central de Alocação.
-            Já contam automaticamente as descrições com <strong>TERCEIRO</strong>, <strong>MÃO DE OBRA</strong>, <strong>EMPREITEIRA</strong> ou{' '}
-            <strong>SUBCONTRATO</strong>. Use a lista abaixo para incluir outros códigos/termos ou excluir um código que não deve contar.
+            <strong>Serviço de terceiro</strong> entra no custo de M.O da PO, somado às horas da Central de Alocação. <strong>Frete</strong> é
+            apurado à parte, só para consulta — não entra no M.O. Já são reconhecidas automaticamente as descrições com{' '}
+            <strong>TERCEIRO</strong>, <strong>MÃO DE OBRA</strong>, <strong>EMPREITEIRA</strong>, <strong>SUBCONTRATO</strong> (terceiro) e{' '}
+            <strong>FRETE</strong>, <strong>TRANSPORTADORA</strong> (frete). Use a lista abaixo para incluir outros códigos/termos ou excluir um
+            código que não deve contar.
           </p>
         </div>
       </div>
@@ -140,6 +143,7 @@ function ServicosTerceiros() {
         <table>
           <thead>
             <tr>
+              <th style={{ width: 210 }}>Grupo</th>
               <th style={{ width: 200 }}>Tipo</th>
               <th>Valor</th>
               {podeEditar && <th style={{ width: 40 }} />}
@@ -148,6 +152,7 @@ function ServicosTerceiros() {
           <tbody>
             {regras.map((r) => (
               <tr key={r.id}>
+                <td>{rotuloGrupo[r.grupo || 'terceiro']}</td>
                 <td>{rotulo[r.tipo] || r.tipo}</td>
                 <td>{r.valor}</td>
                 {podeEditar && (
@@ -165,6 +170,13 @@ function ServicosTerceiros() {
       {regras.length === 0 && <p className="muted pequeno-txt">Nenhuma regra extra — valendo só o reconhecimento automático pela descrição.</p>}
       {podeEditar && (
         <div className="filtros" style={{ marginTop: 14 }}>
+          <label className="campo" style={{ maxWidth: 240 }}>
+            <span>Grupo</span>
+            <select value={novo.grupo} onChange={(e) => setNovo({ ...novo, grupo: e.target.value })}>
+              <option value="terceiro">Serviço de terceiro (M.O)</option>
+              <option value="frete">Frete / transporte</option>
+            </select>
+          </label>
           <label className="campo" style={{ maxWidth: 220 }}>
             <span>Tipo</span>
             <select value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value })}>

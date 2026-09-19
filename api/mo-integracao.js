@@ -1,7 +1,7 @@
 import { exigirUsuario, PODE_EDITAR } from './_lib/auth.js';
 import { lerTudo, db } from './_lib/db.js';
 import { alocDisponivel, lerAlocacao } from './_lib/aloc.js';
-import { terceirosPorPo } from './_lib/moTerceiros.js';
+import { comprasPorPo } from './_lib/moTerceiros.js';
 
 const categoriaCargo = (cargo) => (/AUXILIAR/i.test(cargo || '') ? 'auxiliar' : 'tecnico');
 
@@ -89,6 +89,8 @@ export default async function handler(req, res) {
         outros: 0,
         terceiros: 0,
         terceirosLinhas: 0,
+        fretes: 0,
+        fretesLinhas: 0,
         custo: 0, 
         moOrcado: 0, 
         composicoesSemRegra: [] 
@@ -139,7 +141,8 @@ export default async function handler(req, res) {
       if (a.outros) r.outros += Number(a.outros) || 0;
     }
 
-    // Serviços de terceiros comprados via SC/SAP (Rastreamento SC) entram no custo de M.O.
+    // Compras via SC/SAP (Rastreamento SC): serviços de terceiros entram no custo de M.O;
+    // fretes são apurados à parte, só para consulta.
     // Ignora códigos que já existem como item de material do orçamento — esses já foram
     // baixados pela Importação SAP e contá-los aqui dobraria o valor.
     const codigosMateriais = {};
@@ -151,11 +154,14 @@ export default async function handler(req, res) {
         (codigosMateriais[o.po] = codigosMateriais[o.po] || new Set()).add(c);
       }
     }
-    const terceiros = terceirosPorPo(dados.rastreamentoCompras || [], dados.moTerceiros || [], codigosMateriais);
-    for (const [po, t] of Object.entries(terceiros)) {
+    const compras = comprasPorPo(dados.rastreamentoCompras || [], dados.moTerceiros || [], codigosMateriais);
+    for (const [po, c] of Object.entries(compras)) {
       const r = garantePo(po);
-      r.terceiros += t.total;
-      r.terceirosLinhas += t.linhas.length;
+      r.terceiros += c.terceiros.total;
+      r.terceirosLinhas += c.terceiros.linhas.length;
+      // Fretes são só informativos — não entram no custo de M.O.
+      r.fretes += c.fretes.total;
+      r.fretesLinhas += c.fretes.linhas.length;
     }
 
     // Atualiza custo total com hotel + refeição + outros + serviços de terceiros

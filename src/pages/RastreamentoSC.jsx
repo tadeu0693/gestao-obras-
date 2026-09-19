@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { useApp } from '../App.jsx';
 import { Icone } from '../components.jsx';
 import { moeda, numero } from '../lib/util.js';
-import { linhaEhTerceiro } from '../lib/moTerceiros.js';
+import { classificarLinha } from '../lib/moTerceiros.js';
 
 export default function RastreamentoSC() {
   const { dados, toast } = useApp();
@@ -54,7 +54,7 @@ export default function RastreamentoSC() {
       if (filtros.solicitante && !solicitante.includes(filtros.solicitante.toLowerCase())) return false;
       if (filtros.dataInicio && dataLine < filtros.dataInicio) return false;
       if (filtros.dataFim && dataLine > filtros.dataFim) return false;
-      if (filtros.soTerceiros && !linhaEhTerceiro(l, dados?.moTerceiros)) return false;
+      if (filtros.soTerceiros && !classificarLinha(l, dados?.moTerceiros)) return false;
       return true;
     });
   }, [historico, filtros, dados?.moTerceiros]);
@@ -66,9 +66,13 @@ export default function RastreamentoSC() {
 
   const somaValor = selecionadas.reduce((s, l) => s + (Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0)), 0);
   const somaQtd = selecionadas.reduce((s, l) => s + (Number(l.qtd) || 0), 0);
+  const valorDe = (l) => Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0);
   const somaTerceiros = linhasFiltradas
-    .filter((l) => linhaEhTerceiro(l, dados?.moTerceiros))
-    .reduce((s, l) => s + (Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0)), 0);
+    .filter((l) => classificarLinha(l, dados?.moTerceiros) === 'terceiro')
+    .reduce((s, l) => s + valorDe(l), 0);
+  const somaFretes = linhasFiltradas
+    .filter((l) => classificarLinha(l, dados?.moTerceiros) === 'frete')
+    .reduce((s, l) => s + valorDe(l), 0);
 
   const totalPaginas = Math.max(1, Math.ceil(linhasFiltradas.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -182,7 +186,7 @@ export default function RastreamentoSC() {
                 checked={filtrosInput.soTerceiros}
                 onChange={(e) => setFiltrosInput({ ...filtrosInput, soTerceiros: e.target.checked })}
               />
-              Só serviços de terceiros (M.O)
+              Só serviços de terceiros e fretes
             </label>
             <button onClick={() => marcarTodos(true)}>✓ Marcar todos os filtrados ({linhasFiltradas.length})</button>
             <button onClick={() => marcarTodos(false)}>✗ Desmarcar</button>
@@ -194,6 +198,9 @@ export default function RastreamentoSC() {
             </span>
             {somaTerceiros > 0 && (
               <span style={{ color: '#1565c0', fontWeight: 'bold' }}>M.O terceiro no filtro: {moeda(somaTerceiros)}</span>
+            )}
+            {somaFretes > 0 && (
+              <span style={{ color: '#6a1b9a', fontWeight: 'bold' }}>Frete no filtro: {moeda(somaFretes)}</span>
             )}
           </div>
 
@@ -247,14 +254,27 @@ export default function RastreamentoSC() {
                       <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{l.codigo}</td>
                       <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>
                         {l.descricao}
-                        {linhaEhTerceiro(l, dados?.moTerceiros) && (
-                          <span
-                            title="Entra no custo de M.O da PO"
-                            style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 10, background: '#e3f2fd', color: '#1565c0', fontSize: '0.72rem', whiteSpace: 'nowrap' }}
-                          >
-                            M.O terceiro
-                          </span>
-                        )}
+                        {(() => {
+                          const classe = classificarLinha(l, dados?.moTerceiros);
+                          if (!classe) return null;
+                          const frete = classe === 'frete';
+                          return (
+                            <span
+                              title={frete ? 'Apurado à parte — não entra no M.O' : 'Entra no custo de M.O da PO'}
+                              style={{
+                                marginLeft: 6,
+                                padding: '1px 6px',
+                                borderRadius: 10,
+                                background: frete ? '#f3e5f5' : '#e3f2fd',
+                                color: frete ? '#6a1b9a' : '#1565c0',
+                                fontSize: '0.72rem',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {frete ? 'Frete' : 'M.O terceiro'}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>{l.solicitante}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>{l.data}</td>
