@@ -18,6 +18,7 @@ export default function Config() {
       </div>
       {usuario.papel === 'admin' && <Usuarios />}
       <TabelaMO />
+      <ServicosTerceiros />
     </>
   );
 }
@@ -93,6 +94,88 @@ function TabelaMO() {
           <label className="campo" style={{ maxWidth: 150 }}>
             <span>Valor/hora (R$)</span>
             <input value={novo.valorHora} placeholder="ex: 135" onChange={(e) => setNovo({ ...novo, valorHora: e.target.value })} />
+          </label>
+          <button className="primario" onClick={adicionar} style={{ alignSelf: 'flex-end' }}>
+            <Icone nome="mais" tam={16} /> Adicionar regra
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ServicosTerceiros() {
+  const { dados, salvar, excluir, podeEditar, toast } = useApp();
+  const [novo, setNovo] = useState({ tipo: 'codigo', valor: '' });
+  const regras = [...(dados.moTerceiros || [])];
+  const rotulo = { codigo: 'Código SAP', termo: 'Termo na descrição', excecao: 'Exceção (não contar)' };
+
+  const adicionar = async () => {
+    const v = String(novo.valor || '').trim();
+    if (!v) return toast('Informe o código ou termo.', true);
+    if (regras.some((r) => r.tipo === novo.tipo && String(r.valor).trim().toLowerCase() === v.toLowerCase()))
+      return toast('Essa regra já existe.', true);
+    await salvar('moTerceiros', { id: uid(), tipo: novo.tipo, valor: v });
+    setNovo({ tipo: 'codigo', valor: '' });
+  };
+
+  const remover = async (r) => {
+    await excluir('moTerceiros', r.id);
+    toast('Regra removida.');
+  };
+
+  return (
+    <section className="bloco">
+      <div className="bloco-cab">
+        <div>
+          <h2>Serviços de terceiros (M.O comprada via SC)</h2>
+          <p>
+            Compras do SAP que são mão de obra contratada entram no custo de M.O da PO, somadas às horas da Central de Alocação.
+            Já contam automaticamente as descrições com <strong>TERCEIRO</strong>, <strong>MÃO DE OBRA</strong>, <strong>EMPREITEIRA</strong> ou{' '}
+            <strong>SUBCONTRATO</strong>. Use a lista abaixo para incluir outros códigos/termos ou excluir um código que não deve contar.
+          </p>
+        </div>
+      </div>
+      <div className="tabela-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 200 }}>Tipo</th>
+              <th>Valor</th>
+              {podeEditar && <th style={{ width: 40 }} />}
+            </tr>
+          </thead>
+          <tbody>
+            {regras.map((r) => (
+              <tr key={r.id}>
+                <td>{rotulo[r.tipo] || r.tipo}</td>
+                <td>{r.valor}</td>
+                {podeEditar && (
+                  <td className="num">
+                    <button className="fantasma" aria-label="Remover" onClick={() => remover(r)}>
+                      <Icone nome="lixo" tam={16} />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {regras.length === 0 && <p className="muted pequeno-txt">Nenhuma regra extra — valendo só o reconhecimento automático pela descrição.</p>}
+      {podeEditar && (
+        <div className="filtros" style={{ marginTop: 14 }}>
+          <label className="campo" style={{ maxWidth: 220 }}>
+            <span>Tipo</span>
+            <select value={novo.tipo} onChange={(e) => setNovo({ ...novo, tipo: e.target.value })}>
+              <option value="codigo">Código SAP</option>
+              <option value="termo">Termo na descrição</option>
+              <option value="excecao">Exceção (não contar)</option>
+            </select>
+          </label>
+          <label className="campo" style={{ maxWidth: 260 }}>
+            <span>Valor</span>
+            <input value={novo.valor} placeholder="ex: 3356" onChange={(e) => setNovo({ ...novo, valor: e.target.value })} />
           </label>
           <button className="primario" onClick={adicionar} style={{ alignSelf: 'flex-end' }}>
             <Icone nome="mais" tam={16} /> Adicionar regra

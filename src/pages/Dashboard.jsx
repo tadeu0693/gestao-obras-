@@ -303,6 +303,11 @@ function CardMO({ r }) {
       <p className="pequeno-txt muted" style={{ textAlign: 'center', margin: '2px 0 6px' }}>
         {moeda0(r.custo)} de {moeda0(r.moOrcado)}
       </p>
+      {r.terceiros > 0 && (
+        <p className="pequeno-txt muted" style={{ textAlign: 'center', margin: '0 0 6px' }}>
+          inclui {moeda0(r.terceiros)} de terceiros (SC)
+        </p>
+      )}
       {r.composicoesSemRegra?.length > 0 && (
         <p className="pequeno-txt" style={{ color: 'var(--amarelo)', textAlign: 'center' }}>
           {r.composicoesSemRegra.length} equipe(s) sem regra de valor

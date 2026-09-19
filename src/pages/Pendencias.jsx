@@ -29,6 +29,7 @@ export default function Pendencias() {
     .filter((r) => !clienteId || d.orcamentos.some((o) => o.po === r.po))
     .sort((a, b) => b.pctConsumido - a.pctConsumido);
   const semRegra = [...new Set((mo || []).flatMap((r) => (r.composicoesSemRegra || []).map((c) => `PO ${r.po}: ${c}`)))];
+  const semLinhaMO = (mo || []).filter((r) => r.semLinhaMO);
 
   const total = p.locaisParados.length + p.orcamentosVencendo.length + p.terceirosPendentes.length + moAlerta.length;
 
@@ -52,6 +53,15 @@ export default function Pendencias() {
         </div>
       )}
 
+      {semLinhaMO.length > 0 && (
+        <div className="bloco" style={{ borderColor: 'var(--amarelo)' }}>
+          <p className="pequeno-txt">
+            ⚠ POs com custo de M.O apurado mas sem nenhuma linha de M.O no orçamento — o valor não tem onde ser lançado:{' '}
+            {semLinhaMO.map((r) => `PO ${r.po} (${moeda0(r.custo)})`).join(' · ')}
+          </p>
+        </div>
+      )}
+
       {total === 0 ? (
         <div className="vazio">Nenhuma pendência encontrada — tudo em dia por aqui.</div>
       ) : (
@@ -63,6 +73,7 @@ export default function Pendencias() {
                   <strong>PO {r.po}</strong>
                   <div className="pequeno-txt muted">
                     {r.horasNormais + r.horasExtras}h apontadas na Central de Alocação
+                    {r.terceiros > 0 && ` · ${moeda0(r.terceiros)} em serviços de terceiros (${r.terceirosLinhas} SC)`}
                   </div>
                 </div>
                 <span className={`tag ${r.pctConsumido > 100 ? 'falta' : 'sobra'}`}>{r.pctConsumido > 100 ? 'Estourado' : 'Perto do limite'}</span>

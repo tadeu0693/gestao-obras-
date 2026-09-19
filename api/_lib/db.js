@@ -8,7 +8,7 @@ const PREFIX = process.env.DB_PREFIX || 'go:';
 const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
-export const COLECOES = ['clientes', 'orcamentos', 'locais', 'estoque', 'tabelaMO', 'rastreamentoCompras'];
+export const COLECOES = ['clientes', 'orcamentos', 'locais', 'estoque', 'tabelaMO', 'rastreamentoCompras', 'moTerceiros'];
 
 let impl;
 

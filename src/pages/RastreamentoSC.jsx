@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { useApp } from '../App.jsx';
 import { Icone } from '../components.jsx';
 import { moeda, numero } from '../lib/util.js';
+import { linhaEhTerceiro } from '../lib/moTerceiros.js';
 
 export default function RastreamentoSC() {
   const { dados, toast } = useApp();
@@ -15,6 +16,7 @@ export default function RastreamentoSC() {
     solicitante: '',
     dataInicio: '',
     dataFim: '',
+    soTerceiros: false,
   });
   const [filtros, setFiltros] = useState(filtrosInput);
   const [pagina, setPagina] = useState(1);
@@ -52,9 +54,10 @@ export default function RastreamentoSC() {
       if (filtros.solicitante && !solicitante.includes(filtros.solicitante.toLowerCase())) return false;
       if (filtros.dataInicio && dataLine < filtros.dataInicio) return false;
       if (filtros.dataFim && dataLine > filtros.dataFim) return false;
+      if (filtros.soTerceiros && !linhaEhTerceiro(l, dados?.moTerceiros)) return false;
       return true;
     });
-  }, [historico, filtros]);
+  }, [historico, filtros, dados?.moTerceiros]);
 
   const selecionadas = useMemo(
     () => linhasFiltradas.filter((l) => marcadas.has(l.id || (l.solicitacao + '|' + l.pedido + '|' + l.codigo))),
@@ -63,6 +66,9 @@ export default function RastreamentoSC() {
 
   const somaValor = selecionadas.reduce((s, l) => s + (Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0)), 0);
   const somaQtd = selecionadas.reduce((s, l) => s + (Number(l.qtd) || 0), 0);
+  const somaTerceiros = linhasFiltradas
+    .filter((l) => linhaEhTerceiro(l, dados?.moTerceiros))
+    .reduce((s, l) => s + (Number(l.total) || (Number(l.qtd) || 0) * (Number(l.preco) || 0)), 0);
 
   const totalPaginas = Math.max(1, Math.ceil(linhasFiltradas.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -170,6 +176,14 @@ export default function RastreamentoSC() {
           </div>
 
           <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <input
+                type="checkbox"
+                checked={filtrosInput.soTerceiros}
+                onChange={(e) => setFiltrosInput({ ...filtrosInput, soTerceiros: e.target.checked })}
+              />
+              Só serviços de terceiros (M.O)
+            </label>
             <button onClick={() => marcarTodos(true)}>✓ Marcar todos os filtrados ({linhasFiltradas.length})</button>
             <button onClick={() => marcarTodos(false)}>✗ Desmarcar</button>
             <button onClick={exportarSelecionadas} disabled={!selecionadas.length}>
@@ -178,6 +192,9 @@ export default function RastreamentoSC() {
             <span style={{ marginLeft: 'auto', fontWeight: 'bold' }}>
               {selecionadas.length} selecionadas | {somaQtd} unidades | {moeda(somaValor)}
             </span>
+            {somaTerceiros > 0 && (
+              <span style={{ color: '#1565c0', fontWeight: 'bold' }}>M.O terceiro no filtro: {moeda(somaTerceiros)}</span>
+            )}
           </div>
 
           <div style={{ marginBottom: '0.75rem', color: '#666', fontSize: '0.9rem' }}>
@@ -228,7 +245,17 @@ export default function RastreamentoSC() {
                       <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', color: '#1976D2' }}>{l.solicitacao}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>{l.pedido}</td>
                       <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{l.codigo}</td>
-                      <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{l.descricao}</td>
+                      <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>
+                        {l.descricao}
+                        {linhaEhTerceiro(l, dados?.moTerceiros) && (
+                          <span
+                            title="Entra no custo de M.O da PO"
+                            style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 10, background: '#e3f2fd', color: '#1565c0', fontSize: '0.72rem', whiteSpace: 'nowrap' }}
+                          >
+                            M.O terceiro
+                          </span>
+                        )}
+                      </td>
                       <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>{l.solicitante}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'center' }}>{l.data}</td>
                       <td style={{ padding: '0.5rem', textAlign: 'right' }}>{numero(l.qtd)}</td>

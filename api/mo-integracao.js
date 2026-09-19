@@ -1,6 +1,7 @@
 import { exigirUsuario, PODE_EDITAR } from './_lib/auth.js';
 import { lerTudo, db } from './_lib/db.js';
 import { alocDisponivel, lerAlocacao } from './_lib/aloc.js';
+import { terceirosPorPo } from './_lib/moTerceiros.js';
 
 const categoriaCargo = (cargo) => (/AUXILIAR/i.test(cargo || '') ? 'auxiliar' : 'tecnico');
 
@@ -86,6 +87,8 @@ export default async function handler(req, res) {
         hotel: 0,
         refeicao: 0,
         outros: 0,
+        terceiros: 0,
+        terceirosLinhas: 0,
         custo: 0, 
         moOrcado: 0, 
         composicoesSemRegra: [] 
@@ -128,10 +131,29 @@ export default async function handler(req, res) {
       }
     }
 
-    // Atualiza custo total com hotel + refeição + outros
+    // Serviços de terceiros comprados via SC/SAP (Rastreamento SC) entram no custo de M.O.
+    // Ignora códigos que já existem como item de material do orçamento — esses já foram
+    // baixados pela Importação SAP e contá-los aqui dobraria o valor.
+    const codigosMateriais = {};
+    for (const o of dados.orcamentos || []) {
+      if (!o.po) continue;
+      for (const i of o.itens || []) {
+        const c = String(i.codigo || '').trim();
+        if (!c || i.categoria === 'M.O') continue;
+        (codigosMateriais[o.po] = codigosMateriais[o.po] || new Set()).add(c);
+      }
+    }
+    const terceiros = terceirosPorPo(dados.rastreamentoCompras || [], dados.moTerceiros || [], codigosMateriais);
+    for (const [po, t] of Object.entries(terceiros)) {
+      const r = garantePo(po);
+      r.terceiros += t.total;
+      r.terceirosLinhas += t.linhas.length;
+    }
+
+    // Atualiza custo total com hotel + refeição + outros + serviços de terceiros
     for (const po in resultado) {
       const r = resultado[po];
-      r.custo += r.hotel + r.refeicao + r.outros;
+      r.custo += r.hotel + r.refeicao + r.outros + r.terceiros;
     }
 
     for (const o of dados.orcamentos || []) {
@@ -142,12 +164,12 @@ export default async function handler(req, res) {
     }
 
     const porPo = Object.values(resultado)
-      .map((r) => ({ ...r, composicoesSemRegra: [...new Set(r.composicoesSemRegra)], pctConsumido: r.moOrcado ? Math.round((r.custo / r.moOrcado) * 100) : null }))
+      .map((r) => ({ ...r, composicoesSemRegra: [...new Set(r.composicoesSemRegra)], semLinhaMO: !r.moOrcado && r.custo > 0, pctConsumido: r.moOrcado ? Math.round((r.custo / r.moOrcado) * 100) : null }))
       .sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
 
     // Sincroniza: grava o custo calculado no(s) item(ns) de M.O de cada orçamento — se a PO
     // tiver mais de uma linha de M.O, divide proporcionalmente ao peso orçado de cada linha.
-    // O custo agora inclui horas (normais + extras) + hotel + refeição
+    // O custo inclui horas (normais + extras) + hotel + refeição + outros + serviços de terceiros (SC)
     let sincronizados = 0;
     if (sincronizar) {
       const custoPorPo = Object.fromEntries(porPo.map((r) => [String(r.po), r.custo]));
@@ -178,7 +200,7 @@ export default async function handler(req, res) {
           return { ...i, qtdComprada: qtd, valorUnitPago, dataCompra: hoje };
         });
         if (mudou) {
-          lote[o.id] = { ...o, itens, atualizadoEm: new Date().toISOString(), atualizadoPor: 'Integração Central de Alocação' };
+          lote[o.id] = { ...o, itens, atualizadoEm: new Date().toISOString(), atualizadoPor: 'Integração M.O (alocação + SC)' };
           sincronizados++;
         }
       }
