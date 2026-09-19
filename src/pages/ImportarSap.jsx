@@ -204,8 +204,8 @@ export default function ImportarSap() {
                 Itens que vão ser atualizados <span className="tag ok">{atualizacoesFiltradas.length}</span>
                 {filtroPo && <span className="muted pequeno-txt"> de {resultado.atualizacoes.length} no total</span>}
               </h2>
-              <button className="pequeno" disabled={aplicando || !marcadas.size} onClick={aplicar}>
-                {aplicando ? 'Aplicando…' : `Aplicar ${marcadas.size} atualização(ões)`}
+              <button className="pequeno" disabled={aplicando || !resultado?.historico?.length} onClick={aplicar}>
+                {aplicando ? 'Aplicando…' : marcadas.size ? `Aplicar ${marcadas.size} atualização(ões)` : 'Gravar em Rastreamento SC'}
               </button>
             </div>
             {atualizacoesFiltradas.length ? (
