@@ -90,6 +90,7 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
   let descartadasSemPedido = 0;
   let descartadasExcluidas = 0;
   let descartadasAno = 0;
+  let descartadasAbertas = 0;
 
   for (let r = 1; r < aoa.length; r++) {
     const row = aoa[r];
@@ -111,6 +112,12 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
     const statusCancelado = [row[COL.statusSolic], row[COL.statusPedido], row[COL.statusReceb], row[COL.statusNf]].some((s) => norm(s) === 'CANCELADO');
     if (statusCancelado) {
       descartadasCanceladas++;
+      continue;
+    }
+    // Status do Doc. Pedido "Aberto" = comprado mas ainda não recebido -> não entra na
+    // quantidade comprada/recebida. Só "Fechado" conta.
+    if (norm(row[COL.statusPedido]) !== 'FECHADO') {
+      descartadasAbertas++;
       continue;
     }
     const dataPedido = toISO(row[COL.dataPedido]);
@@ -194,6 +201,7 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
       descartadasSemPedido,
       descartadasExcluidas,
       descartadasAno,
+      descartadasAbertas,
     },
   };
 }

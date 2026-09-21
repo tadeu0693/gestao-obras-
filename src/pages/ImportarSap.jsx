@@ -179,7 +179,8 @@ export default function ImportarSap() {
           <section className="bloco">
             <p className="pequeno-txt muted">
               {resultado.resumo.linhasLidas} linhas lidas · {resultado.resumo.descartadasCanceladas} canceladas · {resultado.resumo.descartadasSemPedido} sem PO ·{' '}
-              {resultado.resumo.descartadasAno} fora do ano · {resultado.resumo.descartadasExcluidas} de solicitações excluídas
+              {resultado.resumo.descartadasAno} fora do ano · {resultado.resumo.descartadasExcluidas} de solicitações excluídas ·{' '}
+              {resultado.resumo.descartadasAbertas} pedidos em aberto (ainda não recebidos)
             </p>
           </section>
 
