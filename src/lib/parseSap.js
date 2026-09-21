@@ -52,8 +52,23 @@ const toISO = (v) => {
   return '';
 };
 
+// Constrói um mapa row -> linha onde começa a mesclagem, para uma coluna específica.
+// Usado pra saber se uma célula vazia é de fato continuação de uma célula mesclada
+// (mesmo projeto) ou se é uma linha independente sem projeto nenhum.
+const mapaMesclagem = (merges, col) => {
+  const m = new Map();
+  for (const rng of merges || []) {
+    if (rng.s.c <= col && col <= rng.e.c && rng.e.r > rng.s.r) {
+      for (let r = rng.s.r; r <= rng.e.r; r++) m.set(r, rng.s.r);
+    }
+  }
+  return m;
+};
+
 // aoa = array-de-arrays (XLSX.utils.sheet_to_json(ws, { header: 1, raw: true }))
-export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] } = {}) {
+// merges = ws['!merges'] (opcional) — usado pra distinguir célula "Projeto" mesclada
+// (continuação do projeto acima) de célula genuinamente vazia (sem projeto).
+export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059], merges = [] } = {}) {
   const avisos = [];
   const header = aoa[0] || [];
   for (const [i, nomeEsperado] of Object.entries(CABECALHO_ESPERADO)) {
@@ -62,6 +77,7 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
     }
   }
 
+  const mescProjeto = mapaMesclagem(merges, COL.projeto);
   let ultimoProjeto = '';
   let ultimoNome = '';
   const linhas = [];
@@ -76,7 +92,13 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
     if (row[COL.projeto]) {
       ultimoProjeto = String(row[COL.projeto]).trim();
       ultimoNome = row[COL.nomeProjeto] || '';
+    } else if (!mescProjeto.has(r)) {
+      // Célula vazia e não faz parte de nenhuma mesclagem: é uma linha sem projeto de
+      // fato (ex.: requisição avulsa), não continuação da linha anterior.
+      ultimoProjeto = '';
+      ultimoNome = '';
     }
+    // Se a célula vazia FAZ parte de uma mesclagem, mantém ultimoProjeto (continuação real).
     const pedido = row[COL.pedido];
     const solicitacao = row[COL.solicitacao];
     if (!pedido) {

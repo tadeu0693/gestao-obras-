@@ -29,7 +29,7 @@ export default function ImportarSap() {
         .map((s) => s.trim())
         .filter(Boolean)
         .map(Number);
-      const { consolidado, semCodigo, avisos, resumo, historico } = parseSapCompras(aoa, { ano: ano && ano.trim() ? Number(ano) : null, excluirSolicitacoes: excluirLista });
+      const { consolidado, semCodigo, avisos, resumo, historico } = parseSapCompras(aoa, { ano: ano && ano.trim() ? Number(ano) : null, excluirSolicitacoes: excluirLista, merges: ws['!merges'] || [] });
       const { atualizacoes, naoCasados } = casarComOrcamentos(consolidado, dados.orcamentos);
       setResultado({ atualizacoes, naoCasados, semCodigo, avisos, resumo, historico, arquivo: file.name });
       setMarcadas(new Set(atualizacoes.map((a) => a.itemId)));
