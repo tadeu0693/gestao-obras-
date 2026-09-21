@@ -133,24 +133,47 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
     });
   }
 
-  // Consolida por Projeto + Código: soma toda a quantidade comprada até agora
-  // (isso já cobre compras parceladas — várias linhas da mesma solicitação/código).
-  // Rastreia também SC e Pedido para auditoria de origem das compras.
+  // Consolida por Projeto + Código: soma a quantidade comprada.
+  // Um mesmo Pedido pode aparecer em várias linhas (uma por Recebimento/NF Entrada
+  // recebidos separadamente) sempre com a mesma Quantidade/Preço do Pedido — soma
+  // só uma vez por Pedido, não por linha, senão duplica o valor.
   const grupos = new Map();
   for (const l of linhas) {
     if (!l.codigo) continue; // sem código de item (ex.: frete/serviço genérico) -> não casa com nenhum item
     const k = `${l.projeto}\u0000${l.codigo}`;
-    if (!grupos.has(k)) grupos.set(k, { projeto: l.projeto, nomeProjeto: l.nomeProjeto, codigo: l.codigo, descricao: l.descricao, qtd: 0, valorQtd: 0, data: '', scNumeros: new Set(), pedidosNumeros: new Set() });
+    if (!grupos.has(k)) {
+      grupos.set(k, {
+        projeto: l.projeto,
+        nomeProjeto: l.nomeProjeto,
+        codigo: l.codigo,
+        descricao: l.descricao,
+        qtd: 0,
+        valorQtd: 0,
+        data: '',
+        scNumeros: new Set(),
+        pedidosNumeros: new Set(),
+        pedidosContados: new Set(),
+      });
+    }
     const g = grupos.get(k);
-    g.qtd += l.qtd;
-    g.valorQtd += l.qtd * l.preco;
     if (l.data && l.data > g.data) g.data = l.data;
     if (l.solicitacao) g.scNumeros.add(String(l.solicitacao).trim());
     if (l.pedido) g.pedidosNumeros.add(String(l.pedido).trim());
+
+    const chavePedido = String(l.pedido || '').trim();
+    if (chavePedido && g.pedidosContados.has(chavePedido)) continue; // já somado por outra linha (Receb./NF) do mesmo Pedido
+    if (chavePedido) g.pedidosContados.add(chavePedido);
+    g.qtd += l.qtd;
+    g.valorQtd += l.qtd * l.preco;
   }
 
   const consolidado = [...grupos.values()].map((g) => ({
-    ...g,
+    projeto: g.projeto,
+    nomeProjeto: g.nomeProjeto,
+    codigo: g.codigo,
+    descricao: g.descricao,
+    qtd: g.qtd,
+    data: g.data,
     preco: g.qtd ? g.valorQtd / g.qtd : 0,
     scNumeros: [...g.scNumeros].sort().join(', '),
     pedidosNumeros: [...g.pedidosNumeros].sort().join(', '),
