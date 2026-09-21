@@ -13,6 +13,7 @@ export default function RastreamentoSC() {
     po: '',
     sc: '',
     pedido: '',
+    descricao: '',
     solicitante: '',
     dataInicio: '',
     dataFim: '',
@@ -45,12 +46,14 @@ export default function RastreamentoSC() {
       const po = String(l.projeto || '').toLowerCase();
       const sc = String(l.solicitacao || '').toLowerCase();
       const pedido = String(l.pedido || '').toLowerCase();
+      const descricao = String(l.descricao || '').toLowerCase();
       const solicitante = String(l.solicitante || '').toLowerCase();
       const dataLine = l.data || '';
 
       if (filtros.po && !po.includes(filtros.po.toLowerCase())) return false;
       if (filtros.sc && !sc.includes(filtros.sc.toLowerCase())) return false;
       if (filtros.pedido && !pedido.includes(filtros.pedido.toLowerCase())) return false;
+      if (filtros.descricao && !descricao.includes(filtros.descricao.toLowerCase())) return false;
       if (filtros.solicitante && !solicitante.includes(filtros.solicitante.toLowerCase())) return false;
       if (filtros.dataInicio && dataLine < filtros.dataInicio) return false;
       if (filtros.dataFim && dataLine > filtros.dataFim) return false;
@@ -154,6 +157,13 @@ export default function RastreamentoSC() {
               placeholder="Filtrar Pedido..."
               value={filtrosInput.pedido}
               onChange={(e) => setFiltrosInput({ ...filtrosInput, pedido: e.target.value })}
+              style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
+            />
+            <input
+              type="text"
+              placeholder="Filtrar Descrição..."
+              value={filtrosInput.descricao}
+              onChange={(e) => setFiltrosInput({ ...filtrosInput, descricao: e.target.value })}
               style={{ padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <input
