@@ -52,23 +52,18 @@ const toISO = (v) => {
   return '';
 };
 
-// Constrói um mapa row -> linha onde começa a mesclagem, para uma coluna específica.
-// Usado pra saber se uma célula vazia é de fato continuação de uma célula mesclada
-// (mesmo projeto) ou se é uma linha independente sem projeto nenhum.
-const mapaMesclagem = (merges, col) => {
-  const m = new Map();
-  for (const rng of merges || []) {
-    if (rng.s.c <= col && col <= rng.e.c && rng.e.r > rng.s.r) {
-      for (let r = rng.s.r; r <= rng.e.r; r++) m.set(r, rng.s.r);
-    }
-  }
-  return m;
-};
-
 // aoa = array-de-arrays (XLSX.utils.sheet_to_json(ws, { header: 1, raw: true }))
-// merges = ws['!merges'] (opcional) — usado pra distinguir célula "Projeto" mesclada
-// (continuação do projeto acima) de célula genuinamente vazia (sem projeto).
-export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059], merges = [] } = {}) {
+//
+// O relatório do SAP só preenche a coluna "Projeto" na primeira linha de cada grupo
+// (célula mesclada visualmente), deixando as linhas seguintes em branco. A mesclagem
+// do Excel, porém, não é confiável — em alguns relatórios ela "gruda" linhas de
+// Solicitações (SC) diferentes num mesmo bloco visual sem relação real de projeto.
+// Por isso a associação usa a própria SC: cada Solicitação pertence a exatamente um
+// projeto, então mapeamos SC -> Projeto (usando a primeira linha daquela SC que traga
+// o Projeto preenchido, em qualquer ponto da planilha) e aplicamos isso a todas as
+// linhas da mesma SC. Se a SC nunca tiver o Projeto preenchido, fica vazia — nunca
+// herda o projeto de outra SC.
+export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] } = {}) {
   const avisos = [];
   const header = aoa[0] || [];
   for (const [i, nomeEsperado] of Object.entries(CABECALHO_ESPERADO)) {
@@ -77,9 +72,19 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059],
     }
   }
 
-  const mescProjeto = mapaMesclagem(merges, COL.projeto);
-  let ultimoProjeto = '';
-  let ultimoNome = '';
+  // 1ª passada: mapeia SC -> Projeto usando qualquer linha daquela SC com Projeto preenchido.
+  const projetoPorSc = new Map();
+  for (let r = 1; r < aoa.length; r++) {
+    const row = aoa[r];
+    if (!row || !row.length) continue;
+    const sc = row[COL.solicitacao];
+    if (sc == null || sc === '' || !row[COL.projeto]) continue;
+    const scKey = String(sc).trim();
+    if (!projetoPorSc.has(scKey)) {
+      projetoPorSc.set(scKey, { projeto: String(row[COL.projeto]).trim(), nomeProjeto: row[COL.nomeProjeto] || '' });
+    }
+  }
+
   const linhas = [];
   let descartadasCanceladas = 0;
   let descartadasSemPedido = 0;
@@ -89,16 +94,10 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059],
   for (let r = 1; r < aoa.length; r++) {
     const row = aoa[r];
     if (!row || !row.length) continue;
-    if (row[COL.projeto]) {
-      ultimoProjeto = String(row[COL.projeto]).trim();
-      ultimoNome = row[COL.nomeProjeto] || '';
-    } else if (!mescProjeto.has(r)) {
-      // Célula vazia e não faz parte de nenhuma mesclagem: é uma linha sem projeto de
-      // fato (ex.: requisição avulsa), não continuação da linha anterior.
-      ultimoProjeto = '';
-      ultimoNome = '';
-    }
-    // Se a célula vazia FAZ parte de uma mesclagem, mantém ultimoProjeto (continuação real).
+    const scKey = row[COL.solicitacao] != null ? String(row[COL.solicitacao]).trim() : '';
+    const infoProjeto = scKey ? projetoPorSc.get(scKey) : null;
+    const projetoAtual = row[COL.projeto] ? String(row[COL.projeto]).trim() : infoProjeto?.projeto || '';
+    const nomeAtual = row[COL.projeto] ? row[COL.nomeProjeto] || '' : infoProjeto?.nomeProjeto || '';
     const pedido = row[COL.pedido];
     const solicitacao = row[COL.solicitacao];
     if (!pedido) {
@@ -121,8 +120,8 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059],
     }
     const codigo = row[COL.codigoPedido] != null ? String(row[COL.codigoPedido]).trim() : '';
     linhas.push({
-      projeto: ultimoProjeto,
-      nomeProjeto: ultimoNome,
+      projeto: projetoAtual,
+      nomeProjeto: nomeAtual,
       solicitacao,
       solicitante: row[COL.solicitante] || '',
       codigo,
