@@ -172,36 +172,34 @@ export default function Dashboard() {
 }
 
 function PainelInterativo({ pos, moPorPo, materiais, nomeCliente, poFiltro, setPoFiltro }) {
-  const posFiltradas = poFiltro ? pos.filter((g) => g.po === poFiltro) : pos;
-  const moFiltrado = poFiltro ? moPorPo.filter((r) => r.po === poFiltro) : moPorPo;
+  const posFiltradas = pos.filter((g) => g.po === poFiltro);
+  const moFiltrado = moPorPo.filter((r) => r.po === poFiltro);
 
   return (
     <div>
-      {poFiltro && (
-        <div className="filtro-ativo">
-          Filtrando por <strong>PO {poFiltro}</strong>
-          <span className="muted pequeno-txt">— volta ao carrossel automático após 5 min sem uso</span>
-          <button className="fantasma" onClick={() => setPoFiltro(null)}>
-            ❚❚ Voltar ao carrossel
-          </button>
-        </div>
-      )}
+      <div className="filtro-ativo">
+        Detalhe da <strong>PO {poFiltro}</strong>
+        <span className="muted pequeno-txt">— volta ao carrossel automático após 5 min sem uso</span>
+        <button className="fantasma" onClick={() => setPoFiltro(null)}>
+          ❚❚ Voltar ao carrossel
+        </button>
+      </div>
       <div className="grid-interativo">
         <section className="painel-secao">
-          <h3>Progresso por PO</h3>
-          <SlideProgresso pos={pos} nomeCliente={nomeCliente} onSelecionarPo={setPoFiltro} poAtiva={poFiltro} />
+          <h3>Progresso</h3>
+          <SlideProgresso pos={posFiltradas} nomeCliente={nomeCliente} onSelecionarPo={setPoFiltro} poAtiva={poFiltro} />
         </section>
         <section className="painel-secao">
-          <h3>Orçamento e material por PO</h3>
+          <h3>Orçamento e material</h3>
           <SlideOrcamentoMaterial pos={posFiltradas} nomeCliente={nomeCliente} onSelecionarPo={setPoFiltro} poAtiva={poFiltro} />
         </section>
         <section className="painel-secao">
-          <h3>Materiais por quantidade{poFiltro ? ` — PO ${poFiltro}` : ''}</h3>
+          <h3>Materiais por quantidade — PO {poFiltro}</h3>
           <SlideMateriaisQtd materiais={materiais} />
         </section>
         <section className="painel-secao">
-          <h3>M.O por PO</h3>
-          {moFiltrado.length ? <SlideMO pos={moFiltrado} /> : <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p>}
+          <h3>M.O</h3>
+          {moFiltrado.length ? <SlideMO pos={moFiltrado} onSelecionarPo={setPoFiltro} poAtiva={poFiltro} /> : <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p>}
         </section>
       </div>
     </div>
