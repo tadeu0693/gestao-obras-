@@ -202,6 +202,12 @@ tr.linha-marcada td { background: #eef6f6; }
 .grid-cards-po { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .card-po { border: 1px solid var(--linha); border-radius: 12px; padding: 14px; cursor: pointer; }
 .card-po:hover { background: #f7f9f9; }
+.card-po.ativa, .linha-progresso.ativa { border-color: var(--aqua); background: #eefaf9; box-shadow: inset 0 0 0 1px var(--aqua); }
+
+.grid-interativo { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px; margin-top: 16px; }
+.painel-secao { background: var(--papel); border: 1px solid var(--linha); border-radius: 14px; padding: 18px; }
+.painel-secao h3 { margin: 0 0 12px; }
+.filtro-ativo { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 8px 14px; background: #eefaf9; border: 1px solid var(--aqua); border-radius: 10px; font-size: 13px; }
 .card-po-cab { display: flex; flex-direction: column; margin-bottom: 4px; }
 .gauge-wrap { position: relative; }
 .gauge-centro { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: flex; flex-direction: column; }
