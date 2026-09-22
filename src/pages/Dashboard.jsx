@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
@@ -209,12 +209,24 @@ function PainelInterativo({ pos, moPorPo, materiais, nomeCliente, poFiltro, setP
 function Carrossel({ slides }) {
   const [ativo, setAtivo] = useState(0);
   const [pausado, setPausado] = useState(false);
+  const [altura, setAltura] = useState(null);
+  const slideRefs = useRef([]);
 
   useEffect(() => {
     if (pausado) return;
     const t = setInterval(() => setAtivo((a) => (a + 1) % slides.length), SEGUNDOS_POR_SLIDE * 1000);
     return () => clearInterval(t);
   }, [pausado, slides.length]);
+
+  useLayoutEffect(() => {
+    const medir = () => {
+      const el = slideRefs.current[ativo];
+      if (el) setAltura(el.scrollHeight);
+    };
+    medir();
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  });
 
   return (
     <div className="carrossel">
@@ -233,10 +245,10 @@ function Carrossel({ slides }) {
         </div>
       </div>
 
-      <div className="carrossel-viewport">
+      <div className="carrossel-viewport" style={altura ? { height: altura } : undefined}>
         <div className="carrossel-trilho" style={{ transform: `translateX(-${ativo * 100}%)` }}>
           {slides.map((s, i) => (
-            <div className="carrossel-slide" key={i}>
+            <div className="carrossel-slide" key={i} ref={(el) => (slideRefs.current[i] = el)}>
               {s.conteudo}
             </div>
           ))}
