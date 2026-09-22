@@ -363,18 +363,30 @@ function CardOrcamentoPO({ g, nomeCliente, onSelecionarPo, poAtiva }) {
   );
 }
 
+const truncar = (txt, n = 22) => (txt && txt.length > n ? `${txt.slice(0, n - 1)}…` : txt || '');
+
 function SlideMateriaisQtd({ materiais }) {
   if (!materiais.length) return <p className="muted pequeno-txt">Nenhum material cadastrado ainda.</p>;
-  const top = materiais.slice(0, 10);
+  const top = materiais.slice(0, 8);
   return (
-    <div style={{ width: '100%', height: Math.max(top.length * 34, 120) }}>
+    <div style={{ width: '100%', height: top.length * 44 + 20 }}>
       <ResponsiveContainer>
-        <BarChart data={top} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+        <BarChart data={top} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }} barCategoryGap={10}>
           <XAxis type="number" tick={{ fontSize: 11 }} />
-          <YAxis type="category" dataKey="descricao" width={170} tick={{ fontSize: 11 }} />
-          <Tooltip formatter={(v, nome, item) => [`${v.toLocaleString('pt-BR')} ${item.payload.unidade || ''}`.trim(), nome]} />
-          <Bar dataKey="comprada" name="Comprado" stackId="m" fill="var(--aqua)" />
-          <Bar dataKey="faltante" name="Faltante" stackId="m" fill="var(--nevoa)" radius={[0, 4, 4, 0]} />
+          <YAxis
+            type="category"
+            dataKey="descricao"
+            width={130}
+            interval={0}
+            tick={{ fontSize: 10 }}
+            tickFormatter={(v) => truncar(v)}
+          />
+          <Tooltip
+            labelFormatter={(v) => v}
+            formatter={(valor, nome, item) => [`${valor.toLocaleString('pt-BR')} ${item.payload.unidade || ''}`.trim(), nome]}
+          />
+          <Bar dataKey="comprada" name="Comprado" stackId="m" fill="var(--aqua)" barSize={18} />
+          <Bar dataKey="faltante" name="Faltante" stackId="m" fill="var(--nevoa)" radius={[0, 4, 4, 0]} barSize={18} />
         </BarChart>
       </ResponsiveContainer>
     </div>
