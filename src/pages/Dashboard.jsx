@@ -9,9 +9,32 @@ const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice
 const diasNaFrente = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 const SEGUNDOS_POR_SLIDE = 12;
 
+function materiaisPorCodigo(d, poFiltro) {
+  const mapa = new Map();
+  for (const o of d.orcamentos) {
+    if (poFiltro && o.po !== poFiltro) continue;
+    for (const i of o.itens || []) {
+      if (i.categoria === 'M.O') continue;
+      const chave = i.codigo || i.descricao;
+      if (!chave) continue;
+      if (!mapa.has(chave)) mapa.set(chave, { codigo: i.codigo, descricao: i.descricao, unidade: i.unidade, qtd: 0, comprada: 0 });
+      const m = mapa.get(chave);
+      m.qtd += Number(i.qtd) || 0;
+      m.comprada += Math.min(Number(i.qtdComprada) || 0, Number(i.qtd) || 0);
+    }
+  }
+  return [...mapa.values()]
+    .map((m) => ({ ...m, faltante: Math.max(m.qtd - m.comprada, 0) }))
+    .filter((m) => m.qtd > 0)
+    .sort((a, b) => b.faltante - a.faltante);
+}
+
 export default function Dashboard() {
   const { dados, clienteId, nomeCliente, recarregar, podeEditar } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
+
+  const [interativo, setInterativo] = useState(false);
+  const [poFiltro, setPoFiltro] = useState(null);
 
   const [mo, setMo] = useState(null);
   useEffect(() => {
@@ -58,6 +81,11 @@ export default function Dashboard() {
     [d],
   );
 
+  useEffect(() => setPoFiltro(null), [clienteId]);
+
+  const materiaisGeral = useMemo(() => materiaisPorCodigo(d, null), [d]);
+  const materiaisFiltrados = useMemo(() => materiaisPorCodigo(d, poFiltro), [d, poFiltro]);
+
   const moPorPo = useMemo(() => {
     const posValidas = new Set(d.orcamentos.map((o) => o.po));
     return (mo || [])
@@ -103,6 +131,7 @@ export default function Dashboard() {
           conteudo: <SlideMO pos={pagina} />,
         }))
       : [{ titulo: 'M.O por PO', conteudo: <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p> }]),
+    { titulo: 'Materiais por quantidade', conteudo: <SlideMateriaisQtd materiais={materiaisGeral} /> },
     { titulo: 'Essa semana e mapa da operação', conteudo: <SlideSemanaMapa semana={semana} locais={d.locais} /> },
   ];
 
@@ -115,11 +144,61 @@ export default function Dashboard() {
         </div>
         <div className="topo-acoes">
           <FiltroCliente />
+          <button className={interativo ? '' : 'fantasma'} onClick={() => setInterativo((v) => !v)}>
+            {interativo ? '❚❚ Carrossel automático' : '⊞ Modo interativo'}
+          </button>
         </div>
       </div>
 
-      <Carrossel slides={slides} />
+      {interativo ? (
+        <PainelInterativo
+          pos={pos}
+          moPorPo={moPorPo}
+          materiais={materiaisFiltrados}
+          nomeCliente={nomeCliente}
+          poFiltro={poFiltro}
+          setPoFiltro={setPoFiltro}
+        />
+      ) : (
+        <Carrossel slides={slides} />
+      )}
     </>
+  );
+}
+
+function PainelInterativo({ pos, moPorPo, materiais, nomeCliente, poFiltro, setPoFiltro }) {
+  const posFiltradas = poFiltro ? pos.filter((g) => g.po === poFiltro) : pos;
+  const moFiltrado = poFiltro ? moPorPo.filter((r) => r.po === poFiltro) : moPorPo;
+
+  return (
+    <div>
+      {poFiltro && (
+        <div className="filtro-ativo">
+          Filtrando por <strong>PO {poFiltro}</strong>
+          <button className="fantasma" onClick={() => setPoFiltro(null)}>
+            × Limpar filtro
+          </button>
+        </div>
+      )}
+      <div className="grid-interativo">
+        <section className="painel-secao">
+          <h3>Progresso por PO</h3>
+          <SlideProgresso pos={pos} nomeCliente={nomeCliente} onSelecionarPo={setPoFiltro} poAtiva={poFiltro} />
+        </section>
+        <section className="painel-secao">
+          <h3>Orçamento e material por PO</h3>
+          <SlideOrcamentoMaterial pos={posFiltradas} nomeCliente={nomeCliente} onSelecionarPo={setPoFiltro} poAtiva={poFiltro} />
+        </section>
+        <section className="painel-secao">
+          <h3>Materiais por quantidade{poFiltro ? ` — PO ${poFiltro}` : ''}</h3>
+          <SlideMateriaisQtd materiais={materiais} />
+        </section>
+        <section className="painel-secao">
+          <h3>M.O por PO</h3>
+          {moFiltrado.length ? <SlideMO pos={moFiltrado} /> : <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p>}
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -169,11 +248,21 @@ function Carrossel({ slides }) {
   );
 }
 
-function SlideProgresso({ pos, nomeCliente }) {
+function SlideProgresso({ pos, nomeCliente, onSelecionarPo, poAtiva }) {
   return pos.length ? (
     <div className="progresso-pos">
       {pos.map((g) => (
-        <div key={g.clienteId + g.po} className="linha-progresso clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
+        <div
+          key={g.clienteId + g.po}
+          className={`linha-progresso clicavel${poAtiva === g.po ? ' ativa' : ''}`}
+          onClick={() =>
+            onSelecionarPo
+              ? onSelecionarPo(poAtiva === g.po ? null : g.po)
+              : g.orcamentos.length === 1
+                ? navegar(`orcamentos/${g.orcamentos[0].id}`)
+                : navegar('orcamentos')
+          }
+        >
           <div className="linha-progresso-cab">
             <strong>PO {g.po}</strong>
             <span className="muted pequeno-txt">
@@ -206,25 +295,35 @@ function SlideProgresso({ pos, nomeCliente }) {
   );
 }
 
-function SlideOrcamentoMaterial({ pos, nomeCliente }) {
+function SlideOrcamentoMaterial({ pos, nomeCliente, onSelecionarPo, poAtiva }) {
   if (!pos.length) return <p className="muted pequeno-txt">Nenhum projeto cadastrado ainda.</p>;
   return (
     <div className="grid-cards-po">
       {pos.map((g) => (
-        <CardOrcamentoPO key={g.clienteId + g.po} g={g} nomeCliente={nomeCliente} />
+        <CardOrcamentoPO key={g.clienteId + g.po} g={g} nomeCliente={nomeCliente} onSelecionarPo={onSelecionarPo} poAtiva={poAtiva} />
       ))}
     </div>
   );
 }
 
-function CardOrcamentoPO({ g, nomeCliente }) {
+function CardOrcamentoPO({ g, nomeCliente, onSelecionarPo, poAtiva }) {
   const cor = g.estourado ? 'var(--vermelho)' : 'var(--verde)';
   const pctMostrado = g.estourado ? 100 : g.pctGasto;
   const dadosGauge = [{ value: pctMostrado, fill: cor }];
   const dadosMaterial = [{ po: 'material', Comprado: Math.round(g.materialComprado), Faltante: Math.round(g.materialFaltante) }];
+  const ativa = poAtiva === g.po;
 
   return (
-    <div className="card-po clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
+    <div
+      className={`card-po clicavel${ativa ? ' ativa' : ''}`}
+      onClick={() =>
+        onSelecionarPo
+          ? onSelecionarPo(ativa ? null : g.po)
+          : g.orcamentos.length === 1
+            ? navegar(`orcamentos/${g.orcamentos[0].id}`)
+            : navegar('orcamentos')
+      }
+    >
       <div className="card-po-cab">
         <strong>PO {g.po}</strong>
         <span className="muted pequeno-txt">{nomeCliente(g.clienteId)}</span>
@@ -260,6 +359,24 @@ function CardOrcamentoPO({ g, nomeCliente }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+    </div>
+  );
+}
+
+function SlideMateriaisQtd({ materiais }) {
+  if (!materiais.length) return <p className="muted pequeno-txt">Nenhum material cadastrado ainda.</p>;
+  const top = materiais.slice(0, 10);
+  return (
+    <div style={{ width: '100%', height: Math.max(top.length * 34, 120) }}>
+      <ResponsiveContainer>
+        <BarChart data={top} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 4 }}>
+          <XAxis type="number" tick={{ fontSize: 11 }} />
+          <YAxis type="category" dataKey="descricao" width={170} tick={{ fontSize: 11 }} />
+          <Tooltip formatter={(v, nome, item) => [`${v.toLocaleString('pt-BR')} ${item.payload.unidade || ''}`.trim(), nome]} />
+          <Bar dataKey="comprada" name="Comprado" stackId="m" fill="var(--aqua)" />
+          <Bar dataKey="faltante" name="Faltante" stackId="m" fill="var(--nevoa)" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
