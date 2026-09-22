@@ -192,7 +192,7 @@ tr.linha-marcada td { background: #eef6f6; }
 .carrossel-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 10px; }
 .carrossel-controles { display: flex; gap: 4px; }
 .carrossel-controles button { font-size: 18px; line-height: 1; padding: 6px 12px; }
-.carrossel-viewport { overflow: hidden; }
+.carrossel-viewport { overflow: hidden; transition: height 0.25s ease; }
 .carrossel-trilho { display: flex; transition: transform 0.5s ease; }
 .carrossel-slide { flex: 0 0 100%; min-width: 0; }
 .carrossel-pontos { display: flex; justify-content: center; gap: 8px; margin-top: 18px; }
