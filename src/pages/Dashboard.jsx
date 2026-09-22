@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
@@ -33,8 +33,13 @@ export default function Dashboard() {
   const { dados, clienteId, nomeCliente, recarregar, podeEditar } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
 
-  const [interativo, setInterativo] = useState(false);
   const [poFiltro, setPoFiltro] = useState(null);
+  const idleTimer = useRef(null);
+  const selecionarPo = useCallback((po) => {
+    setPoFiltro(po);
+    clearTimeout(idleTimer.current);
+    if (po) idleTimer.current = setTimeout(() => setPoFiltro(null), 5 * 60 * 1000);
+  }, []);
 
   const [mo, setMo] = useState(null);
   useEffect(() => {
@@ -81,7 +86,10 @@ export default function Dashboard() {
     [d],
   );
 
-  useEffect(() => setPoFiltro(null), [clienteId]);
+  useEffect(() => {
+    setPoFiltro(null);
+    clearTimeout(idleTimer.current);
+  }, [clienteId]);
 
   const materiaisGeral = useMemo(() => materiaisPorCodigo(d, null), [d]);
   const materiaisFiltrados = useMemo(() => materiaisPorCodigo(d, poFiltro), [d, poFiltro]);
@@ -119,16 +127,16 @@ export default function Dashboard() {
   const slides = [
     ...paginasProgresso.map((pagina, i) => ({
       titulo: paginasProgresso.length > 1 ? `Progresso por PO (${i + 1}/${paginasProgresso.length})` : 'Progresso por PO',
-      conteudo: <SlideProgresso pos={pagina} nomeCliente={nomeCliente} />,
+      conteudo: <SlideProgresso pos={pagina} nomeCliente={nomeCliente} onSelecionarPo={selecionarPo} poAtiva={poFiltro} />,
     })),
     ...paginasCards.map((pagina, i) => ({
       titulo: paginasCards.length > 1 ? `Orçamento e material por PO (${i + 1}/${paginasCards.length})` : 'Orçamento e material por PO',
-      conteudo: <SlideOrcamentoMaterial pos={pagina} nomeCliente={nomeCliente} />,
+      conteudo: <SlideOrcamentoMaterial pos={pagina} nomeCliente={nomeCliente} onSelecionarPo={selecionarPo} poAtiva={poFiltro} />,
     })),
     ...(paginasMO.length
       ? paginasMO.map((pagina, i) => ({
           titulo: paginasMO.length > 1 ? `M.O por PO (${i + 1}/${paginasMO.length})` : 'M.O por PO',
-          conteudo: <SlideMO pos={pagina} />,
+          conteudo: <SlideMO pos={pagina} onSelecionarPo={selecionarPo} poAtiva={poFiltro} />,
         }))
       : [{ titulo: 'M.O por PO', conteudo: <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p> }]),
     { titulo: 'Materiais por quantidade', conteudo: <SlideMateriaisQtd materiais={materiaisGeral} /> },
@@ -144,20 +152,17 @@ export default function Dashboard() {
         </div>
         <div className="topo-acoes">
           <FiltroCliente />
-          <button className={interativo ? '' : 'fantasma'} onClick={() => setInterativo((v) => !v)}>
-            {interativo ? '❚❚ Carrossel automático' : '⊞ Modo interativo'}
-          </button>
         </div>
       </div>
 
-      {interativo ? (
+      {poFiltro ? (
         <PainelInterativo
           pos={pos}
           moPorPo={moPorPo}
           materiais={materiaisFiltrados}
           nomeCliente={nomeCliente}
           poFiltro={poFiltro}
-          setPoFiltro={setPoFiltro}
+          setPoFiltro={selecionarPo}
         />
       ) : (
         <Carrossel slides={slides} />
@@ -175,8 +180,9 @@ function PainelInterativo({ pos, moPorPo, materiais, nomeCliente, poFiltro, setP
       {poFiltro && (
         <div className="filtro-ativo">
           Filtrando por <strong>PO {poFiltro}</strong>
+          <span className="muted pequeno-txt">— volta ao carrossel automático após 5 min sem uso</span>
           <button className="fantasma" onClick={() => setPoFiltro(null)}>
-            × Limpar filtro
+            ❚❚ Voltar ao carrossel
           </button>
         </div>
       )}
@@ -393,26 +399,30 @@ function SlideMateriaisQtd({ materiais }) {
   );
 }
 
-function SlideMO({ pos }) {
+function SlideMO({ pos, onSelecionarPo, poAtiva }) {
   if (!pos.length) return <p className="muted pequeno-txt">Nenhum dado de M.O disponível ainda.</p>;
   return (
     <div className="grid-cards-po">
       {pos.map((r) => (
-        <CardMO key={r.po} r={r} />
+        <CardMO key={r.po} r={r} onSelecionarPo={onSelecionarPo} poAtiva={poAtiva} />
       ))}
     </div>
   );
 }
 
-function CardMO({ r }) {
+function CardMO({ r, onSelecionarPo, poAtiva }) {
   const estourado = r.pctConsumido != null && r.pctConsumido > 100;
   const cor = estourado ? 'var(--vermelho)' : 'var(--verde)';
   const pctMostrado = estourado ? 100 : r.pctConsumido || 0;
   const dadosGauge = [{ value: pctMostrado, fill: cor }];
   const horas = (r.horasNormais || 0) + (r.horasExtras || 0);
+  const ativa = poAtiva === r.po;
 
   return (
-    <div className="card-po" onClick={() => navegar('orcamentos')}>
+    <div
+      className={`card-po${ativa ? ' ativa' : ''}`}
+      onClick={() => (onSelecionarPo ? onSelecionarPo(ativa ? null : r.po) : navegar('orcamentos'))}
+    >
       <div className="card-po-cab">
         <strong>PO {r.po}</strong>
         <span className="muted pequeno-txt">{horas.toLocaleString('pt-BR')}h apontadas</span>
