@@ -253,7 +253,7 @@ function contarCameras(itens) {
 }
 
 function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
-  const { dados, toast } = useApp();
+  const { dados, toast, nomeCliente } = useApp();
   const rs = entrada.rascunho;
   const [salvando, setSalvando] = useState(false);
   const set = (campo, v) => setRascunho((x) => ({ ...x, [campo]: v, ...(campo === 'modo' ? { _escolheu: true } : {}) }));
@@ -331,13 +331,21 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
             </label>
           </div>
           {(rs.modo === 'atualizar' || rs.modo === 'aditivo') && (
-            <Campo rotulo="Qual orçamento atualizar" className="largo" dica={clienteNovo ? 'escolha o cliente acima primeiro' : undefined}>
-              <select value={rs.duplicadoId || ''} onChange={(e) => set('duplicadoId', e.target.value || null)} disabled={clienteNovo}>
+            <Campo rotulo="Qual orçamento atualizar" className="largo" dica={clienteNovo ? 'cliente do arquivo não existe: mostrando todos' : undefined}>
+              <select
+                value={rs.duplicadoId || ''}
+                onChange={(e) => {
+                  const o = dados.orcamentos.find((x) => x.id === e.target.value);
+                  setRascunho((x) => ({ ...x, duplicadoId: o?.id || null, _escolheu: true, ...(o && clienteNovo ? { clienteRef: o.clienteId } : {}) }));
+                }}
+              >
                 <option value="">Selecione o orçamento…</option>
                 {dados.orcamentos
-                  .filter((o) => o.clienteId === rs.clienteRef)
+                  .filter((o) => clienteNovo || o.clienteId === rs.clienteRef)
+                  .sort((x, y) => String(x.po).localeCompare(String(y.po), 'pt-BR', { numeric: true }))
                   .map((o) => (
                     <option key={o.id} value={o.id}>
+                      {clienteNovo ? `${nomeCliente(o.clienteId)} — ` : ''}
                       {o.nome} {o.po ? `(PO ${o.po})` : '(sem PO)'}
                     </option>
                   ))}
