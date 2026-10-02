@@ -132,11 +132,11 @@ function resolver(rs, dados) {
   const dup = dados.orcamentos.find((x) => x.clienteId === clienteRef && String(x.po) === String(rs.po) && rs.po);
   // um arquivo anterior da mesma fila pode ter acabado de criar o orçamento desta PO
   if (clienteRef === rs.clienteRef && !rs._pendente) {
-    if (dup && !rs.duplicadoId && !rs._escolheu) return { ...rs, duplicadoId: dup.id, modo: 'perguntar' };
+    if (dup && !rs.duplicadoId && !rs._escolheu) return { ...rs, duplicadoId: dup.id, modo: 'aditivo' };
     return rs;
   }
   const loc = rs.local?.nome && dados.locais.find((l) => l.clienteId === clienteRef && String(l.po) === String(rs.po) && semAcento(l.nome) === semAcento(rs.local.nome));
-  return { ...rs, clienteRef, _pendente: false, duplicadoId: dup?.id || null, modo: dup ? (rs._escolheu ? rs.modo : 'perguntar') : 'novo', localExistenteId: loc?.id || null };
+  return { ...rs, clienteRef, _pendente: false, duplicadoId: dup?.id || null, modo: dup ? (rs._escolheu ? rs.modo : 'aditivo') : 'novo', localExistenteId: loc?.id || null };
 }
 
 function montarRascunho(r, dados) {
@@ -151,7 +151,7 @@ function montarRascunho(r, dados) {
     status: 'Em análise',
     clienteRef,
     duplicadoId: dup?.id || null,
-    modo: dup ? 'perguntar' : 'novo',
+    modo: dup ? 'aditivo' : 'novo',
     conflitos: {},
     criarLocal: !!r.localSugerido,
     localExistenteId: localExistente?.id || null,
@@ -321,10 +321,10 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
           <strong>{dup ? 'Já existe um orçamento nesta PO. O que este arquivo representa?' : 'Isso é uma atualização de um orçamento já existente, ou um projeto novo?'}</strong>
           <div style={{ display: 'flex', gap: 18, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <label className="check">
-              <input type="radio" checked={rs.modo === 'atualizar'} onChange={() => set('modo', 'atualizar')} /> Nova revisão (substitui os itens, mantém as compras já lançadas)
+              <input type="radio" checked={rs.modo === 'aditivo'} onChange={() => set('modo', 'aditivo')} /> Acrescentar ao orçamento existente (mantém os itens atuais e adiciona os deste arquivo)
             </label>
             <label className="check">
-              <input type="radio" checked={rs.modo === 'aditivo'} onChange={() => set('modo', 'aditivo')} /> Acréscimo / aditivo (soma aos itens já existentes)
+              <input type="radio" checked={rs.modo === 'atualizar'} onChange={() => set('modo', 'atualizar')} /> Substituir todos os itens por este arquivo (nova revisão)
             </label>
             <label className="check">
               <input type="radio" checked={rs.modo === 'novo'} onChange={() => set('modo', 'novo')} /> Salvar como orçamento novo
