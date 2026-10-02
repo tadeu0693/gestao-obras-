@@ -12,17 +12,19 @@ import RastreamentoSC from './pages/RastreamentoSC.jsx';
 import Locais from './pages/Locais.jsx';
 import Consolidado from './pages/Consolidado.jsx';
 import Pendencias from './pages/Pendencias.jsx';
+import Tarefas from './pages/Tarefas.jsx';
 import Clientes from './pages/Clientes.jsx';
 import Config from './pages/Config.jsx';
 
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
 
-const VAZIO = { clientes: [], orcamentos: [], locais: [], estoque: [], tabelaMO: [], rastreamentoCompras: [], moTerceiros: [] };
+const VAZIO = { clientes: [], orcamentos: [], locais: [], estoque: [], tabelaMO: [], rastreamentoCompras: [], moTerceiros: [], tarefas: [] };
 
 const NAV = [
   ['painel', 'Painel', 'painel'],
   ['dashboard', 'Dashboard', 'dashboard'],
+  ['tarefas', 'Tarefas', 'tarefas'],
   ['pendencias', 'Pendências', 'pendencias'],
   ['orcamentos', 'Orçamentos', 'orcamentos'],
   ['importar', 'Importar proposta', 'importar'],
@@ -172,6 +174,7 @@ export default function App() {
   let conteudo;
   if (somenteDashboard) conteudo = <Dashboard />;
   else if (pagina === 'orcamentos' && param) conteudo = <OrcamentoDetalhe id={param} />;
+  else if (pagina === 'tarefas') conteudo = <Tarefas />;
   else if (pagina === 'pendencias') conteudo = <Pendencias />;
   else if (pagina === 'dashboard') conteudo = <Dashboard />;
   else if (pagina === 'orcamentos') conteudo = <Orcamentos />;
