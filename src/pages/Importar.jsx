@@ -127,12 +127,16 @@ function resolver(rs, dados) {
     const c = dados.clientes.find((x) => semAcento(x.nome) === semAcento(clienteRef.slice(5)));
     if (c) clienteRef = c.id;
   }
-  if (clienteRef === rs.clienteRef && !rs._pendente) return rs;
   // Duplicidade é por cliente + PO (o identificador que o resto do sistema já usa pra
   // agrupar tudo) — não exige que o nome do arquivo/projeto seja idêntico entre versões.
   const dup = dados.orcamentos.find((x) => x.clienteId === clienteRef && String(x.po) === String(rs.po) && rs.po);
+  // um arquivo anterior da mesma fila pode ter acabado de criar o orçamento desta PO
+  if (clienteRef === rs.clienteRef && !rs._pendente) {
+    if (dup && !rs.duplicadoId && !rs._escolheu) return { ...rs, duplicadoId: dup.id, modo: 'perguntar' };
+    return rs;
+  }
   const loc = rs.local?.nome && dados.locais.find((l) => l.clienteId === clienteRef && String(l.po) === String(rs.po) && semAcento(l.nome) === semAcento(rs.local.nome));
-  return { ...rs, clienteRef, _pendente: false, duplicadoId: dup?.id || null, modo: dup ? 'atualizar' : 'novo', localExistenteId: loc?.id || null };
+  return { ...rs, clienteRef, _pendente: false, duplicadoId: dup?.id || null, modo: dup ? (rs._escolheu ? rs.modo : 'perguntar') : 'novo', localExistenteId: loc?.id || null };
 }
 
 function montarRascunho(r, dados) {
@@ -147,7 +151,8 @@ function montarRascunho(r, dados) {
     status: 'Em análise',
     clienteRef,
     duplicadoId: dup?.id || null,
-    modo: dup ? 'atualizar' : 'novo',
+    modo: dup ? 'perguntar' : 'novo',
+    conflitos: {},
     criarLocal: !!r.localSugerido,
     localExistenteId: localExistente?.id || null,
     local: { nome: r.localSugerido, uf: o.ufDestino, regiao: '', endereco: '' },
@@ -164,8 +169,31 @@ async function gravar(rsOriginal, dados, salvar) {
     clienteId = c.id;
   }
   // 2. orçamento
-  const { clienteRef, clienteNome, _pendente, duplicadoId, modo, criarLocal, localExistenteId, local, ...orc } = rs; // eslint-disable-line no-unused-vars
+  const { clienteRef, clienteNome, _pendente, _escolheu, conflitos, duplicadoId, modo, criarLocal, localExistenteId, local, ...orc } = rs; // eslint-disable-line no-unused-vars
   let registro = { ...orc, clienteId, id: uid() };
+  if (modo === 'aditivo' && duplicadoId) {
+    const antigo = dados.orcamentos.find((x) => x.id === duplicadoId);
+    const itens = (antigo?.itens || []).map((i) => ({ ...i }));
+    const idx = new Map(itens.map((i, n) => [chaveItem(i), n]));
+    for (const novo of orc.itens) {
+      const n = idx.get(chaveItem(novo));
+      if (n === undefined) {
+        idx.set(chaveItem(novo), itens.length);
+        itens.push(novo);
+        continue;
+      }
+      const a = itens[n];
+      if ((conflitos?.[chaveItem(novo)] || 'somar') === 'trocar') {
+        itens[n] = { ...novo, id: a.id, qtdComprada: a.qtdComprada || 0, dataCompra: a.dataCompra || '', valorUnitPago: a.valorUnitPago || 0 };
+      } else {
+        const qtd = (Number(a.qtd) || 0) + (Number(novo.qtd) || 0);
+        const custoUnit = qtd ? ((Number(a.qtd) || 0) * (Number(a.custoUnit) || 0) + (Number(novo.qtd) || 0) * (Number(novo.custoUnit) || 0)) / qtd : a.custoUnit;
+        itens[n] = { ...a, qtd, custoUnit, rob: (Number(a.rob) || 0) + (Number(novo.rob) || 0) };
+      }
+    }
+    const [salvoAd] = await salvar('orcamentos', { ...antigo, itens, robArquivo: (antigo.robArquivo || 0) + (orc.robArquivo || 0) });
+    return salvoAd.id;
+  }
   if (modo === 'atualizar' && duplicadoId) {
     const antigo = dados.orcamentos.find((x) => x.id === duplicadoId);
     const antigos = new Map((antigo?.itens || []).map((i) => [chaveItem(i), i]));
@@ -228,7 +256,7 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
   const { dados, toast } = useApp();
   const rs = entrada.rascunho;
   const [salvando, setSalvando] = useState(false);
-  const set = (campo, v) => setRascunho((x) => ({ ...x, [campo]: v }));
+  const set = (campo, v) => setRascunho((x) => ({ ...x, [campo]: v, ...(campo === 'modo' ? { _escolheu: true } : {}) }));
   useEffect(() => {
     const novo = resolver(rs, dados);
     if (novo !== rs) setRascunho(() => novo);
@@ -238,10 +266,18 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
   const regioes = [...new Set(dados.locais.map((l) => l.regiao).filter(Boolean))].sort();
   const clienteNovo = rs.clienteRef.startsWith('novo:');
   const dup = rs.duplicadoId && dados.orcamentos.find((o) => o.id === rs.duplicadoId);
+  const conflitos = useMemo(() => {
+    if (rs.modo !== 'aditivo' || !dup) return [];
+    const antigos = new Map((dup.itens || []).map((i) => [chaveItem(i), i]));
+    return rs.itens.filter((i) => antigos.has(chaveItem(i))).map((i) => ({ novo: i, antigo: antigos.get(chaveItem(i)), chave: chaveItem(i) }));
+  }, [rs.modo, rs.itens, dup]);
+  const escolha = (chave) => rs.conflitos?.[chave] || 'somar';
+  const todos = (v) => set('conflitos', Object.fromEntries(conflitos.map((c) => [c.chave, v])));
   const localExistente = rs.localExistenteId && dados.locais.find((l) => l.id === rs.localExistenteId);
 
   const confirmar = async () => {
-    if (rs.modo === 'atualizar' && !rs.duplicadoId) return toast('Escolha qual orçamento você quer atualizar, ou selecione "orçamento novo".', true);
+    if (rs.modo === 'perguntar') return toast('Informe se é atualização, acréscimo (aditivo) ou orçamento novo.', true);
+    if ((rs.modo === 'atualizar' || rs.modo === 'aditivo') && !rs.duplicadoId) return toast('Escolha qual orçamento você quer atualizar, ou selecione "orçamento novo".', true);
     if (!rs.po && !confirm('Este orçamento está sem PO. Salvar mesmo assim?')) return;
     setSalvando(true);
     try {
@@ -282,16 +318,19 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
           </div>
         )}
         <div className="aviso">
-          <strong>Isso é uma atualização de um orçamento já existente, ou um projeto novo?</strong>
+          <strong>{dup ? 'Já existe um orçamento nesta PO. O que este arquivo representa?' : 'Isso é uma atualização de um orçamento já existente, ou um projeto novo?'}</strong>
           <div style={{ display: 'flex', gap: 18, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <label className="check">
-              <input type="radio" checked={rs.modo === 'atualizar'} onChange={() => set('modo', 'atualizar')} /> Atualizar um existente (mantém as compras já lançadas)
+              <input type="radio" checked={rs.modo === 'atualizar'} onChange={() => set('modo', 'atualizar')} /> Nova revisão (substitui os itens, mantém as compras já lançadas)
+            </label>
+            <label className="check">
+              <input type="radio" checked={rs.modo === 'aditivo'} onChange={() => set('modo', 'aditivo')} /> Acréscimo / aditivo (soma aos itens já existentes)
             </label>
             <label className="check">
               <input type="radio" checked={rs.modo === 'novo'} onChange={() => set('modo', 'novo')} /> Salvar como orçamento novo
             </label>
           </div>
-          {rs.modo === 'atualizar' && (
+          {(rs.modo === 'atualizar' || rs.modo === 'aditivo') && (
             <Campo rotulo="Qual orçamento atualizar" className="largo" dica={clienteNovo ? 'escolha o cliente acima primeiro' : undefined}>
               <select value={rs.duplicadoId || ''} onChange={(e) => set('duplicadoId', e.target.value || null)} disabled={clienteNovo}>
                 <option value="">Selecione o orçamento…</option>
@@ -304,6 +343,43 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
                   ))}
               </select>
             </Campo>
+          )}
+          {rs.modo === 'aditivo' && dup && (
+            <div style={{ marginTop: 10 }}>
+              {conflitos.length === 0 ? (
+                <p className="pequeno-txt" style={{ margin: 0 }}>Nenhum item deste arquivo repete material do orçamento atual: todos serão acrescentados.</p>
+              ) : (
+                <>
+                  <p style={{ margin: '0 0 8px' }}>
+                    <strong>{conflitos.length}</strong> {conflitos.length === 1 ? 'material já existe' : 'materiais já existem'} no orçamento. Somar a quantidade ou trocar pelo item deste arquivo?
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                    <button className="pequeno" onClick={() => todos('somar')}>Somar todos</button>
+                    <button className="pequeno" onClick={() => todos('trocar')}>Trocar todos</button>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr><th>Material</th><th className="num">Qtd atual</th><th className="num">Qtd arquivo</th><th>Ação</th></tr>
+                    </thead>
+                    <tbody>
+                      {conflitos.map((c) => (
+                        <tr key={c.chave}>
+                          <td>{c.novo.codigo ? `${c.novo.codigo} · ` : ''}{c.novo.descricao}</td>
+                          <td className="num">{c.antigo.qtd}</td>
+                          <td className="num">{c.novo.qtd}</td>
+                          <td>
+                            <select value={escolha(c.chave)} onChange={(e) => set('conflitos', { ...rs.conflitos, [c.chave]: e.target.value })} style={{ width: 'auto' }}>
+                              <option value="somar">Somar → {(Number(c.antigo.qtd) || 0) + (Number(c.novo.qtd) || 0)}</option>
+                              <option value="trocar">Trocar → {c.novo.qtd}</option>
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
           )}
         </div>
         <div className="grade">
@@ -417,7 +493,7 @@ function Revisao({ entrada, setRascunho, aoSalvar, aoDescartar }) {
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={aoDescartar}>Descartar arquivo</button>
           <button className="primario" onClick={confirmar} disabled={salvando}>
-            <Icone nome="importar" /> {salvando ? 'Salvando…' : rs.modo === 'atualizar' && dup ? 'Atualizar orçamento' : 'Salvar orçamento'}
+            <Icone nome="importar" /> {salvando ? 'Salvando…' : rs.modo === 'aditivo' && dup ? 'Acrescentar ao orçamento' : rs.modo === 'atualizar' && dup ? 'Atualizar orçamento' : 'Salvar orçamento'}
           </button>
         </div>
       </div>
