@@ -208,9 +208,11 @@ export function parseSapCompras(aoa, { ano = null, excluirSolicitacoes = [4059] 
 
 // Extrai só o número da PO de um texto de projeto, ignorando qualquer coisa
 // antes ou depois (ex: "PO7634 - Gerdau Pinda" -> "7634").
+// Também aceita só o número ("6656"), com zeros à esquerda ("PO06656") etc.
 const extrairPo = (texto) => {
-  const m = String(texto || '').match(/PO\s*0*([0-9]{3,})/i);
-  return m ? m[1] : String(texto || '').trim();
+  const t = String(texto || '').trim();
+  const m = t.match(/(?:OP|PO)?\s*[-_]?\s*0*([0-9]{3,})/i);
+  return m ? m[1] : t.toUpperCase();
 };
 
 // Casa o consolidado do SAP com os orçamentos já existentes no sistema.
@@ -221,7 +223,7 @@ export function casarComOrcamentos(consolidado, orcamentos, semCodigo = []) {
 
   for (const g of consolidado) {
     const poAlvo = extrairPo(g.projeto);
-    const orcs = orcamentos.filter((o) => String(o.po || '').trim() === poAlvo);
+    const orcs = orcamentos.filter((o) => extrairPo(o.po) === poAlvo);
     let achou = false;
     for (const o of orcs) {
       const item = (o.itens || []).find((i) => String(i.codigo || '').trim() === g.codigo);
@@ -250,7 +252,7 @@ export function casarComOrcamentos(consolidado, orcamentos, semCodigo = []) {
 
   // Linhas sem código (frete, serviços etc.) também entram, uma por linha, para contabilizar tudo.
   for (const l of semCodigo) {
-    const orcs = orcamentos.filter((o) => String(o.po || '').trim() === extrairPo(l.projeto));
+    const orcs = orcamentos.filter((o) => extrairPo(o.po) === extrairPo(l.projeto));
     naoCasados.push({
       projeto: l.projeto,
       nomeProjeto: l.nomeProjeto,
