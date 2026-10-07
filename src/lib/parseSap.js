@@ -215,7 +215,7 @@ const extrairPo = (texto) => {
 
 // Casa o consolidado do SAP com os orçamentos já existentes no sistema.
 // Retorna { atualizacoes: [{orcamentoId, po, itemId, descricao, qtdAntes, qtdNova, ...}], naoCasados: [...] }
-export function casarComOrcamentos(consolidado, orcamentos) {
+export function casarComOrcamentos(consolidado, orcamentos, semCodigo = []) {
   const atualizacoes = [];
   const naoCasados = [];
 
@@ -245,7 +245,25 @@ export function casarComOrcamentos(consolidado, orcamentos) {
         break;
       }
     }
-    if (!achou) naoCasados.push(g);
+    if (!achou) naoCasados.push({ ...g, orcamentoId: orcs[0]?.id || '', orcamentoNome: orcs[0]?.nome || '' });
+  }
+
+  // Linhas sem código (frete, serviços etc.) também entram, uma por linha, para contabilizar tudo.
+  for (const l of semCodigo) {
+    const orcs = orcamentos.filter((o) => String(o.po || '').trim() === extrairPo(l.projeto));
+    naoCasados.push({
+      projeto: l.projeto,
+      nomeProjeto: l.nomeProjeto,
+      codigo: '',
+      descricao: l.descricao,
+      qtd: l.qtd,
+      preco: l.preco,
+      data: l.data,
+      scNumeros: String(l.solicitacao || '').trim(),
+      pedidosNumeros: String(l.pedido || '').trim(),
+      orcamentoId: orcs[0]?.id || '',
+      orcamentoNome: orcs[0]?.nome || '',
+    });
   }
 
   return { atualizacoes, naoCasados };

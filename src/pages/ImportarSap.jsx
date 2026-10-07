@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../App.jsx';
 import { Icone } from '../components.jsx';
-import { moeda, numero, data } from '../lib/util.js';
+import { moeda, numero, data, uid } from '../lib/util.js';
 import { parseSapCompras, casarComOrcamentos } from '../lib/parseSap.js';
 
 export default function ImportarSap() {
@@ -30,7 +30,7 @@ export default function ImportarSap() {
         .filter(Boolean)
         .map(Number);
       const { consolidado, semCodigo, avisos, resumo, historico } = parseSapCompras(aoa, { ano: ano && ano.trim() ? Number(ano) : null, excluirSolicitacoes: excluirLista });
-      const { atualizacoes, naoCasados } = casarComOrcamentos(consolidado, dados.orcamentos);
+      const { atualizacoes, naoCasados } = casarComOrcamentos(consolidado, dados.orcamentos, semCodigo);
       setResultado({ atualizacoes, naoCasados, semCodigo, avisos, resumo, historico, arquivo: file.name });
       setMarcadas(new Set(atualizacoes.map((a) => a.itemId)));
       setFiltroPo('');
@@ -83,6 +83,46 @@ export default function ImportarSap() {
       await salvar('orcamentos', { ...o, itens });
     }
     
+    // Itens comprados que não existem no orçamento: adiciona ao orçamento da PO
+    // (qtd/custo orçado = 0) para que o gasto seja contabilizado.
+    const novosPorOrc = new Map();
+    for (const g of resultado.naoCasados) {
+      if (!g.orcamentoId) continue;
+      if (!novosPorOrc.has(g.orcamentoId)) novosPorOrc.set(g.orcamentoId, []);
+      novosPorOrc.get(g.orcamentoId).push(g);
+    }
+    let adicionados = 0;
+    for (const [orcamentoId, lista] of novosPorOrc) {
+      const o = dados.orcamentos.find((x) => x.id === orcamentoId);
+      if (!o) continue;
+      const itens = [...(o.itens || [])];
+      for (const g of lista) {
+        // evita duplicar em reimportação (itens sem código: compara descrição + pedido)
+        if (!g.codigo && itens.some((i) => i.foraOrcamento && i.descricao === g.descricao && i.pedidosNumeros === g.pedidosNumeros)) continue;
+        itens.push({
+          id: uid(),
+          grupo: 'Fora do orçamento',
+          categoria: 'Miscelâneas',
+          codigo: g.codigo,
+          descricao: g.descricao,
+          unidade: '',
+          marca: '',
+          modelo: '',
+          qtd: 0,
+          custoUnit: 0,
+          rob: 0,
+          qtdComprada: g.qtd,
+          valorUnitPago: g.preco,
+          dataCompra: g.data,
+          scNumeros: g.scNumeros,
+          pedidosNumeros: g.pedidosNumeros,
+          foraOrcamento: true,
+        });
+        adicionados++;
+      }
+      await salvar('orcamentos', { ...o, itens });
+    }
+
     // Grava TODO o histórico de compras (SC, Pedido, Solicitante, Data, Qtd, Preço)
     // no rastreamento, independente de casar ou não com um orçamento existente.
     // O usuário quer ver e validar todas as informações do SAP, não só as aplicadas.
@@ -117,7 +157,7 @@ export default function ImportarSap() {
     }
     
     setAplicando(false);
-    toast(`${[...porOrcamento.values()].flat().length} itens atualizados${Object.keys(historicoRegistros).length ? ' e ' + Object.keys(historicoRegistros).length + ' registros gravados em Rastreamento SC' : ''}.`);
+    toast(`${[...porOrcamento.values()].flat().length} itens atualizados${adicionados ? ', ' + adicionados + ' adicionados ao orçamento' : ''}${Object.keys(historicoRegistros).length ? ' e ' + Object.keys(historicoRegistros).length + ' registros gravados em Rastreamento SC' : ''}.`);
     setResultado(null);
   };
 
@@ -205,7 +245,7 @@ export default function ImportarSap() {
                 Itens que vão ser atualizados <span className="tag ok">{atualizacoesFiltradas.length}</span>
                 {filtroPo && <span className="muted pequeno-txt"> de {resultado.atualizacoes.length} no total</span>}
               </h2>
-              <button className="pequeno" disabled={aplicando || !resultado?.historico?.length} onClick={aplicar}>
+              <button className="pequeno" disabled={aplicando || !(resultado?.historico?.length || resultado?.naoCasados?.length)} onClick={aplicar}>
                 {aplicando ? 'Aplicando…' : marcadas.size ? `Aplicar ${marcadas.size} atualização(ões)` : 'Gravar em Rastreamento SC'}
               </button>
             </div>
@@ -267,7 +307,7 @@ export default function ImportarSap() {
               {filtroPo && <span className="muted pequeno-txt"> de {resultado.naoCasados.length} no total</span>}
             </h2>
             <p className="pequeno-txt muted" style={{ marginBottom: 10 }}>
-              Comprados no SAP para essas POs, mas sem item correspondente cadastrado no orçamento — não foram alterados. Adicione manualmente na tela do orçamento se fizer sentido.
+              Comprados no SAP para essas POs, mas sem item correspondente no orçamento — serão adicionados ao orçamento da PO (grupo &quot;Fora do orçamento&quot;, qtd orçada 0) ao aplicar. POs sem orçamento cadastrado não são afetadas.
             </p>
             {naoCasadosFiltrados.length > 0 && (
               <div className="tabela-wrap">
@@ -283,7 +323,7 @@ export default function ImportarSap() {
                   </thead>
                   <tbody>
                     {naoCasadosFiltrados.map((g) => (
-                      <tr key={g.projeto + g.codigo}>
+                      <tr key={g.projeto + g.codigo + g.pedidosNumeros + g.descricao}>
                         <td>{g.projeto}</td>
                         <td className="muted">{g.codigo}</td>
                         <td style={{ minWidth: 220 }}>{g.descricao}</td>
