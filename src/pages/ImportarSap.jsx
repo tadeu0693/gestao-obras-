@@ -49,6 +49,8 @@ export default function ImportarSap() {
   const atualizacoesFiltradas = (resultado?.atualizacoes || []).filter((a) => !filtroPo || String(a.po).toLowerCase().includes(filtroPo.trim().toLowerCase()));
   const naoCasadosFiltrados = (resultado?.naoCasados || []).filter((g) => !filtroPo || String(g.projeto).toLowerCase().includes(filtroPo.trim().toLowerCase()));
 
+  const adicoesPendentes = (resultado?.naoCasados || []).filter((g) => g.orcamentoId).length;
+
   const marcarTodos = (marcar) =>
     setMarcadas((s) => {
       const n = new Set(s);
@@ -65,24 +67,6 @@ export default function ImportarSap() {
       if (!porOrcamento.has(a.orcamentoId)) porOrcamento.set(a.orcamentoId, []);
       porOrcamento.get(a.orcamentoId).push(a);
     }
-    for (const [orcamentoId, upds] of porOrcamento) {
-      const o = dados.orcamentos.find((x) => x.id === orcamentoId);
-      if (!o) continue;
-      const itens = o.itens.map((i) => {
-        const u = upds.find((x) => x.itemId === i.id);
-        if (!u) return i;
-        return { 
-          ...i, 
-          qtdComprada: u.qtdNova, 
-          valorUnitPago: u.precoNovo, 
-          dataCompra: u.dataNova || i.dataCompra,
-          scNumeros: u.scNumeros || i.scNumeros,
-          pedidosNumeros: u.pedidosNumeros || i.pedidosNumeros,
-        };
-      });
-      await salvar('orcamentos', { ...o, itens });
-    }
-    
     // Itens comprados que não existem no orçamento: adiciona ao orçamento da PO
     // (qtd/custo orçado = 0) para que o gasto seja contabilizado.
     const novosPorOrc = new Map();
@@ -91,12 +75,27 @@ export default function ImportarSap() {
       if (!novosPorOrc.has(g.orcamentoId)) novosPorOrc.set(g.orcamentoId, []);
       novosPorOrc.get(g.orcamentoId).push(g);
     }
+    // Um único salvamento por orçamento (atualizações + itens novos juntos),
+    // senão o 2º salvamento sobrescreve o 1º.
     let adicionados = 0;
-    for (const [orcamentoId, lista] of novosPorOrc) {
+    const ids = new Set([...porOrcamento.keys(), ...novosPorOrc.keys()]);
+    for (const orcamentoId of ids) {
       const o = dados.orcamentos.find((x) => x.id === orcamentoId);
       if (!o) continue;
-      const itens = [...(o.itens || [])];
-      for (const g of lista) {
+      const upds = porOrcamento.get(orcamentoId) || [];
+      const itens = (o.itens || []).map((i) => {
+        const u = upds.find((x) => x.itemId === i.id);
+        if (!u) return i;
+        return {
+          ...i,
+          qtdComprada: u.qtdNova,
+          valorUnitPago: u.precoNovo,
+          dataCompra: u.dataNova || i.dataCompra,
+          scNumeros: u.scNumeros || i.scNumeros,
+          pedidosNumeros: u.pedidosNumeros || i.pedidosNumeros,
+        };
+      });
+      for (const g of novosPorOrc.get(orcamentoId) || []) {
         // evita duplicar em reimportação (itens sem código: compara descrição + pedido)
         if (!g.codigo && itens.some((i) => i.foraOrcamento && i.descricao === g.descricao && i.pedidosNumeros === g.pedidosNumeros)) continue;
         itens.push({
@@ -246,7 +245,7 @@ export default function ImportarSap() {
                 {filtroPo && <span className="muted pequeno-txt"> de {resultado.atualizacoes.length} no total</span>}
               </h2>
               <button className="pequeno" disabled={aplicando || !(resultado?.historico?.length || resultado?.naoCasados?.length)} onClick={aplicar}>
-                {aplicando ? 'Aplicando…' : marcadas.size ? `Aplicar ${marcadas.size} atualização(ões)` : 'Gravar em Rastreamento SC'}
+                {aplicando ? 'Aplicando…' : (marcadas.size || adicoesPendentes) ? `Aplicar ${marcadas.size} atualização(ões)${adicoesPendentes ? ` + adicionar ${adicoesPendentes} ao orçamento` : ''}` : 'Gravar em Rastreamento SC'}
               </button>
             </div>
             {atualizacoesFiltradas.length ? (
@@ -319,6 +318,7 @@ export default function ImportarSap() {
                       <th>Descrição</th>
                       <th className="num">Qtd</th>
                       <th className="num">Valor unit.</th>
+                      <th>Destino</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -329,6 +329,7 @@ export default function ImportarSap() {
                         <td style={{ minWidth: 220 }}>{g.descricao}</td>
                         <td className="num">{numero(g.qtd)}</td>
                         <td className="num">{moeda(g.preco)}</td>
+                        <td className="pequeno-txt">{g.orcamentoId ? <>Adicionar em <strong>{g.orcamentoNome || 'orçamento'}</strong></> : <span className="muted">Sem orçamento para esta PO</span>}</td>
                       </tr>
                     ))}
                   </tbody>
