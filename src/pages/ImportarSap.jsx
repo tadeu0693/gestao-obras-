@@ -11,6 +11,7 @@ export default function ImportarSap() {
   const [excluir, setExcluir] = useState('4059');
   const [resultado, setResultado] = useState(null);
   const [marcadas, setMarcadas] = useState(() => new Set());
+  const [novasMarcadas, setNovasMarcadas] = useState(() => new Set());
   const [filtroPo, setFiltroPo] = useState('');
   const [aplicando, setAplicando] = useState(false);
   const [sobre, setSobre] = useState(false);
@@ -33,11 +34,21 @@ export default function ImportarSap() {
       const { atualizacoes, naoCasados } = casarComOrcamentos(consolidado, dados.orcamentos, semCodigo);
       setResultado({ atualizacoes, naoCasados, semCodigo, avisos, resumo, historico, arquivo: file.name });
       setMarcadas(new Set(atualizacoes.map((a) => a.itemId)));
+      setNovasMarcadas(new Set()); // itens fora do orçamento: nada marcado por padrão, o usuário escolhe
       setFiltroPo('');
     } catch (err) {
       toast('Não consegui ler esse arquivo: ' + err.message, true);
     }
   };
+
+  const chaveNova = (g) => `${g.projeto}|${g.codigo}|${g.pedidosNumeros}|${g.descricao}`;
+  const alternarNova = (g) =>
+    setNovasMarcadas((s) => {
+      const n = new Set(s);
+      const k = chaveNova(g);
+      n.has(k) ? n.delete(k) : n.add(k);
+      return n;
+    });
 
   const alternar = (itemId) =>
     setMarcadas((s) => {
@@ -49,7 +60,13 @@ export default function ImportarSap() {
   const atualizacoesFiltradas = (resultado?.atualizacoes || []).filter((a) => !filtroPo || String(a.po).toLowerCase().includes(filtroPo.trim().toLowerCase()));
   const naoCasadosFiltrados = (resultado?.naoCasados || []).filter((g) => !filtroPo || String(g.projeto).toLowerCase().includes(filtroPo.trim().toLowerCase()));
 
-  const adicoesPendentes = (resultado?.naoCasados || []).filter((g) => g.orcamentoId).length;
+  const adicoesPendentes = (resultado?.naoCasados || []).filter((g) => g.orcamentoId && novasMarcadas.has(chaveNova(g))).length;
+  const marcarNovas = (marcar) =>
+    setNovasMarcadas((s) => {
+      const n = new Set(s);
+      naoCasadosFiltrados.filter((g) => g.orcamentoId).forEach((g) => (marcar ? n.add(chaveNova(g)) : n.delete(chaveNova(g))));
+      return n;
+    });
 
   const marcarTodos = (marcar) =>
     setMarcadas((s) => {
@@ -71,7 +88,7 @@ export default function ImportarSap() {
     // (qtd/custo orçado = 0) para que o gasto seja contabilizado.
     const novosPorOrc = new Map();
     for (const g of resultado.naoCasados) {
-      if (!g.orcamentoId) continue;
+      if (!g.orcamentoId || !novasMarcadas.has(chaveNova(g))) continue;
       if (!novosPorOrc.has(g.orcamentoId)) novosPorOrc.set(g.orcamentoId, []);
       novosPorOrc.get(g.orcamentoId).push(g);
     }
@@ -306,13 +323,20 @@ export default function ImportarSap() {
               {filtroPo && <span className="muted pequeno-txt"> de {resultado.naoCasados.length} no total</span>}
             </h2>
             <p className="pequeno-txt muted" style={{ marginBottom: 10 }}>
-              Comprados no SAP para essas POs, mas sem item correspondente no orçamento — serão adicionados ao orçamento da PO (grupo &quot;Fora do orçamento&quot;, qtd orçada 0) ao aplicar. POs sem orçamento cadastrado não são afetadas.
+              Comprados no SAP para essas POs, mas sem item correspondente no orçamento — marque os que realmente pertencem a esta obra para adicionar ao orçamento da PO (grupo &quot;Fora do orçamento&quot;, qtd orçada 0) ao aplicar. Os desmarcados não entram.
             </p>
+            {naoCasadosFiltrados.length > 0 && (
+              <div className="filtros" style={{ marginBottom: 10 }}>
+                <button className="pequeno" onClick={() => marcarNovas(true)}>Marcar {filtroPo ? 'filtrados' : 'todos'}</button>
+                <button className="pequeno" onClick={() => marcarNovas(false)}>Desmarcar {filtroPo ? 'filtrados' : 'todos'}</button>
+              </div>
+            )}
             {naoCasadosFiltrados.length > 0 && (
               <div className="tabela-wrap">
                 <table>
                   <thead>
                     <tr>
+                      <th style={{ width: 30 }} />
                       <th>Projeto</th>
                       <th>Código</th>
                       <th>Descrição</th>
@@ -323,7 +347,8 @@ export default function ImportarSap() {
                   </thead>
                   <tbody>
                     {naoCasadosFiltrados.map((g) => (
-                      <tr key={g.projeto + g.codigo + g.pedidosNumeros + g.descricao}>
+                      <tr key={chaveNova(g)}>
+                        <td>{g.orcamentoId && <input type="checkbox" checked={novasMarcadas.has(chaveNova(g))} onChange={() => alternarNova(g)} />}</td>
                         <td>{g.projeto}</td>
                         <td className="muted">{g.codigo}</td>
                         <td style={{ minWidth: 220 }}>{g.descricao}</td>

@@ -50,6 +50,13 @@ export default function OrcamentoDetalhe({ id }) {
     toast('Orçamento excluído');
     navegar('orcamentos');
   };
+  const qtdForaOrc = (o.itens || []).filter((i) => i.foraOrcamento).length;
+  const removerForaOrc = async () => {
+    if (!confirm(`Remover ${qtdForaOrc} item(ns) adicionados automaticamente pela importação do SAP ("Fora do orçamento")?`)) return;
+    await salvar('orcamentos', { ...o, itens: (o.itens || []).filter((i) => !i.foraOrcamento) });
+    setO((x) => ({ ...x, itens: (x.itens || []).filter((i) => !i.foraOrcamento) }));
+    toast('Itens removidos');
+  };
   const exportar = () =>
     exportarExcel(`Orcamento_${o.po || 'semPO'}_${o.nome.replace(/[^\w]+/g, '_')}.xlsx`, {
       Itens: o.itens.map((i) => ({
@@ -87,6 +94,11 @@ export default function OrcamentoDetalhe({ id }) {
           <button onClick={exportar}>
             <Icone nome="baixar" /> Exportar Excel
           </button>
+          {podeEditar && qtdForaOrc > 0 && (
+            <button className="perigo" onClick={removerForaOrc}>
+              <Icone nome="lixo" /> Remover {qtdForaOrc} itens do SAP fora do orçamento
+            </button>
+          )}
           {podeEditar && (
             <button className="perigo" onClick={apagar}>
               <Icone nome="lixo" /> Excluir
