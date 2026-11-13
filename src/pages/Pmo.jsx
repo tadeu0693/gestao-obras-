@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, navegar } from '../App.jsx';
-import { moeda0, numero, pct, semAcento, api } from '../lib/util.js';
+import { moeda0, numero, pct, semAcento, api, uid } from '../lib/util.js';
 import { bookmarkletPmo } from '../lib/pmoBookmarklet.js';
 
 const PMO = 'https://pmo.gitel.com.br';
@@ -9,7 +9,17 @@ const normPo = (po) => {
   return m ? m[0].replace(/^0+/, '') : null;
 };
 const dataHora = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
-const FASES = { orcamento: 'Orçamento', execucao: 'Execução', operacao: 'Operação', finalizado: 'Finalizado' };
+const FASES = { orcamento: 'Orçamento', execucao: 'Execução', operacao: 'Operação', finalizado: 'Finalizado', cancelado: 'Cancelado' };
+// "Em execução" no PMO = fases execução + operação
+const FILTRO_FASE = {
+  ativos: ['execucao', 'operacao'],
+  execucao: ['execucao'],
+  operacao: ['operacao'],
+  orcamento: ['orcamento'],
+  finalizado: ['finalizado'],
+  cancelado: ['cancelado'],
+};
+const STATUS_DA_FASE = { orcamento: 'Em análise', execucao: 'Em execução', operacao: 'Em execução', finalizado: 'Encerrado', cancelado: 'Cancelado' };
 const pendentes = (det) => [...(det?.itens || []), ...(det?.servicos || [])].filter((i) => i.status === 'pendente_compra');
 
 // ---------- janela que recebe os dados do favorito ----------
@@ -71,11 +81,13 @@ export function PmoReceber() {
 
 // ---------- tela de projetos do PMO ----------
 export default function Pmo() {
-  const { dados, podeEditar } = useApp();
+  const { dados, podeEditar, salvar, toast } = useApp();
+  const [fase, setFase] = useState('ativos');
+  const [trazendo, setTrazendo] = useState(false);
   const [r, setR] = useState(null);
   const [erro, setErro] = useState(null);
   const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState('controle');
+  const [filtro, setFiltro] = useState('todos');
   const [aberto, setAberto] = useState(null);
   const linkRef = useRef(null);
 
@@ -107,10 +119,57 @@ export default function Pmo() {
   const linhas = useMemo(() => {
     const q = semAcento(busca);
     return (snap?.projetos || [])
+      .filter((p) => fase === 'todas' || (FILTRO_FASE[fase] || []).includes(p.fase))
       .filter((p) => (filtro === 'controle' ? orcPorPo[p.po] : filtro === 'fora' ? !orcPorPo[p.po] : filtro === 'novos' ? ehNovo(p.codigo) : true))
       .filter((p) => !q || semAcento(`${p.codigo} ${p.nome} ${p.cliente} ${p.comercial || ''}`).includes(q))
       .sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')));
-  }, [snap, busca, filtro, orcPorPo, vistos]);
+  }, [snap, busca, filtro, fase, orcPorPo, vistos]);
+
+  // Cria no controle os projetos do PMO que ainda não existem aqui. Cliente é casado pelo
+  // nome; se não existir, é criado como "a validar".
+  const trazer = async (lista) => {
+    const alvo = lista.filter((p) => p.po && !orcPorPo[p.po]);
+    if (!alvo.length) return toast('Todos já estão no controle.');
+    if (!confirm(`Criar ${alvo.length} orçamento(s) no controle a partir do PMO?`)) return;
+    setTrazendo(true);
+    try {
+      const clientes = [...dados.clientes];
+      const novosClientes = [];
+      const clienteDe = (nome, po) => {
+        const n = String(nome || '').trim() || `A validar - PO ${po}`;
+        let c = clientes.find((x) => semAcento(x.nome) === semAcento(n));
+        if (!c) {
+          c = { id: uid(), nome: n, aValidar: true };
+          clientes.push(c);
+          novosClientes.push(c);
+        }
+        return c.id;
+      };
+      const orcs = alvo.map((p) => ({
+        id: uid(),
+        clienteId: clienteDe(p.cliente && p.cliente !== p.po && !/^\d+$/.test(p.cliente) ? p.cliente : null, p.po),
+        po: p.po,
+        nome: p.nome || p.codigo,
+        status: STATUS_DA_FASE[p.fase] || 'Em execução',
+        comercial: p.comercial || '',
+        vencimento: p.dataValidade || '',
+        robArquivo: p.robOrcada || 0,
+        origem: 'PMO',
+        pmoCodigo: p.codigo,
+        itens: p.custoOrcado
+          ? [{ id: uid(), grupo: 'PMO', categoria: 'Eletrônico', codigo: '', descricao: 'Custo orçado (PMO) — importe a proposta para detalhar', unidade: 'vb', qtd: 1, custoUnit: p.custoOrcado, rob: p.robOrcada || 0, qtdComprada: 0, valorUnitPago: 0, dataCompra: '' }]
+          : [],
+      }));
+      if (novosClientes.length) await salvar('clientes', novosClientes);
+      for (let i = 0; i < orcs.length; i += 20) await salvar('orcamentos', orcs.slice(i, i + 20));
+      toast(`${orcs.length} orçamento(s) criados${novosClientes.length ? `, ${novosClientes.length} cliente(s) novo(s) a validar` : ''}.`);
+    } catch {
+      /* salvar já mostra o erro */
+    } finally {
+      setTrazendo(false);
+    }
+  };
+  const foraDoControle = linhas.filter((p) => p.po && !orcPorPo[p.po]).length;
 
   const soma = linhas.reduce((s, p) => ({ orc: s.orc + (p.robOrcada || 0), real: s.real + (p.robReal || 0) }), { orc: 0, real: 0 });
   const qtdNovos = (snap?.projetos || []).filter((p) => ehNovo(p.codigo)).length;
@@ -164,6 +223,15 @@ export default function Pmo() {
         <div className="bloco">
           <div className="filtros">
             <input type="search" placeholder="Buscar OP, projeto, cliente…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <select value={fase} onChange={(e) => setFase(e.target.value)}>
+              <option value="ativos">Em execução (execução + operação)</option>
+              <option value="execucao">Só execução</option>
+              <option value="operacao">Só operação</option>
+              <option value="orcamento">Orçamento</option>
+              <option value="finalizado">Finalizados</option>
+              <option value="cancelado">Cancelados</option>
+              <option value="todas">Todas as fases</option>
+            </select>
             <select value={filtro} onChange={(e) => setFiltro(e.target.value)}>
               <option value="controle">Só POs que estão no controle</option>
               <option value="fora">Só os que não estão no controle</option>
@@ -173,6 +241,11 @@ export default function Pmo() {
             <span className="pequeno-txt">
               {linhas.length} projetos · ROB orçada {moeda0(soma.orc)} · ROB real {moeda0(soma.real)}
             </span>
+            {podeEditar && foraDoControle > 0 && (
+              <button className="primario" disabled={trazendo} onClick={() => trazer(linhas)}>
+                {trazendo ? 'Criando…' : `Trazer ${foraDoControle} para o controle`}
+              </button>
+            )}
           </div>
           <div className="tabela-wrap">
             <table>
@@ -219,7 +292,13 @@ export default function Pmo() {
                                   {o.nome}
                                 </a>
                               ))
-                            : '—'}
+                            : podeEditar && p.po ? (
+                              <button className="pequeno" disabled={trazendo} onClick={() => trazer([p])}>
+                                Trazer
+                              </button>
+                            ) : (
+                              '—'
+                            )}
                         </td>
                       </tr>
                       {aberto === p.codigo && det && (
