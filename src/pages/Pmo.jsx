@@ -19,6 +19,9 @@ const FILTRO_FASE = {
   finalizado: ['finalizado'],
   cancelado: ['cancelado'],
 };
+// BUs do PMO (/api/bus) — usado quando o projeto não veio com o nome da BU
+const BUS = { 1: 'BU Projetos', 2: 'BU Serviços' };
+const nomeBu = (p) => (typeof p.bu === 'string' && p.bu) || BUS[p.buId ?? p.bu] || 'Sem BU';
 const STATUS_DA_FASE = { orcamento: 'Em análise', execucao: 'Em execução', operacao: 'Em execução', finalizado: 'Encerrado', cancelado: 'Cancelado' };
 const pendentes = (det) => [...(det?.itens || []), ...(det?.servicos || [])].filter((i) => i.status === 'pendente_compra');
 
@@ -83,6 +86,11 @@ export function PmoReceber() {
 export default function Pmo() {
   const { dados, podeEditar, salvar, toast } = useApp();
   const [fase, setFase] = useState('ativos');
+  const [bu, setBuEstado] = useState(() => localStorage.getItem('pmo_bu') ?? 'BU Projetos');
+  const setBu = (v) => {
+    localStorage.setItem('pmo_bu', v);
+    setBuEstado(v);
+  };
   const [trazendo, setTrazendo] = useState(false);
   const [r, setR] = useState(null);
   const [erro, setErro] = useState(null);
@@ -119,11 +127,12 @@ export default function Pmo() {
   const linhas = useMemo(() => {
     const q = semAcento(busca);
     return (snap?.projetos || [])
+      .filter((p) => !bu || nomeBu(p) === bu)
       .filter((p) => fase === 'todas' || (FILTRO_FASE[fase] || []).includes(p.fase))
       .filter((p) => (filtro === 'controle' ? orcPorPo[p.po] : filtro === 'fora' ? !orcPorPo[p.po] : filtro === 'novos' ? ehNovo(p.codigo) : true))
       .filter((p) => !q || semAcento(`${p.codigo} ${p.nome} ${p.cliente} ${p.comercial || ''}`).includes(q))
       .sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')));
-  }, [snap, busca, filtro, fase, orcPorPo, vistos]);
+  }, [snap, busca, filtro, fase, bu, orcPorPo, vistos]);
 
   // Cria no controle os projetos do PMO que ainda não existem aqui. Cliente é casado pelo
   // nome; se não existir, é criado como "a validar".
@@ -223,6 +232,12 @@ export default function Pmo() {
         <div className="bloco">
           <div className="filtros">
             <input type="search" placeholder="Buscar OP, projeto, cliente…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <select value={bu} onChange={(e) => setBu(e.target.value)} aria-label="BU">
+              <option value="">Todas as BUs</option>
+              {[...new Set((snap.projetos || []).map(nomeBu))].sort().map((b) => (
+                <option key={b}>{b}</option>
+              ))}
+            </select>
             <select value={fase} onChange={(e) => setFase(e.target.value)}>
               <option value="ativos">Em execução (execução + operação)</option>
               <option value="execucao">Só execução</option>
