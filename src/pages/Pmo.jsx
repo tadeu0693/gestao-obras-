@@ -120,9 +120,7 @@ export default function Pmo() {
       <div className="topo">
         <div>
           <h1>PMO Gitel</h1>
-          <div className="sub">
-            {snap ? `Última sincronização: ${dataHora(snap.recebidoEm)} por ${snap.enviadoPor} · ${snap.total} projetos` : 'Ainda não sincronizado.'}
-          </div>
+          <div className="sub">Projetos, valores e compras vindos do PMO.</div>
         </div>
         <div className="topo-acoes">
           <button onClick={carregar}>Recarregar</button>
@@ -132,25 +130,33 @@ export default function Pmo() {
         </div>
       </div>
 
-      {podeEditar && (
-        <div className="bloco">
-          <div className="bloco-cab">
-            <div>
-              <h2>Como sincronizar</h2>
-              <p>
-                1. Arraste o botão ao lado para a barra de favoritos (uma vez só). 2. Abra o PMO logado. 3. Clique no favorito — uma janela do Controle de Obras
-                abre, recebe os dados e salva.
+      <div className="bloco">
+        <div className="bloco-cab">
+          <div>
+            <h2>Última sincronização</h2>
+            <p style={{ fontSize: 20, fontWeight: 600, color: 'var(--texto)' }}>{snap ? dataHora(snap.recebidoEm) : 'Nunca sincronizado'}</p>
+            {snap && (
+              <p className="pequeno-txt">
+                por {snap.enviadoPor} · {snap.total} projetos · {Object.keys(snap.detalhes || {}).length} com itens e compras
               </p>
-            </div>
-            <a ref={linkRef} className="btn primario" onClick={(e) => e.preventDefault()} title="Arraste para a barra de favoritos">
+            )}
+          </div>
+          {podeEditar && (
+            <a ref={linkRef} className="btn primario" onClick={(e) => e.preventDefault()} title="Arraste para a barra de favoritos e clique nele dentro do PMO">
               ⇅ Sincronizar PMO
             </a>
-          </div>
-          <p className="pequeno-txt">
-            Lê a lista completa e, para as POs que já existem aqui, também itens orçado × comprado, faturamento e forecast. Nada é alterado no PMO.
-          </p>
+          )}
         </div>
-      )}
+        {podeEditar && (
+          <details>
+            <summary className="pequeno-txt">Como sincronizar</summary>
+            <p className="pequeno-txt">
+              1. Arraste o botão "Sincronizar PMO" para a barra de favoritos (uma vez só). 2. Abra o PMO logado. 3. Clique no favorito — uma janela do Controle
+              de Obras abre, recebe os dados e salva. Nada é alterado no PMO.
+            </p>
+          </details>
+        )}
+      </div>
 
       {erro && <div className="erro-box">{erro}</div>}
 
