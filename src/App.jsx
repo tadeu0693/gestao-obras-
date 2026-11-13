@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api } from './lib/util.js';
+import { api, filtroInicial } from './lib/util.js';
 import { Icone, Simbolo } from './components.jsx';
 import Login from './pages/Login.jsx';
 import Painel from './pages/Painel.jsx';
@@ -49,6 +49,21 @@ function useRota() {
   return rota;
 }
 export const navegar = (caminho) => (window.location.hash = '/' + caminho);
+
+// Abre o que está por trás da linha: 1 orçamento → detalhe; vários → lista filtrada pela PO;
+// só locais (ex.: "sem PO") → Locais filtrado
+export function abrirGrupo(g) {
+  const po = g.po === 'sem PO' ? '' : String(g.po);
+  if (g.orcamentos.length === 1) return navegar(`orcamentos/${g.orcamentos[0].id}`);
+  if (g.orcamentos.length > 1) {
+    filtroInicial('orc_po', po || '__sem');
+    return navegar('orcamentos');
+  }
+  if (g.locais.length === 1) return navegar(`locais/${g.locais[0].id}`);
+  filtroInicial('loc_po', po || '__sem');
+  navegar('locais');
+}
+
 
 export default function App() {
   const [usuario, setUsuario] = useState(undefined); // undefined = verificando

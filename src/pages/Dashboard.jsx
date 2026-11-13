@@ -2,8 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, RadialBarChart, RadialBar, PolarAngleAxis, ResponsiveContainer } from 'recharts';
-import { useApp, FiltroCliente, navegar } from '../App.jsx';
-import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem, api } from '../lib/util.js';
+import { useApp, FiltroCliente, navegar, abrirGrupo } from '../App.jsx';
+import { filtrarPorCliente, agruparPOs, moeda0, data, hojeISO, COR_STATUS, pagoItem, custoItem, api, filtroInicial } from '../lib/util.js';
 
 const diasAtras = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const diasNaFrente = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
@@ -274,9 +274,7 @@ function SlideProgresso({ pos, nomeCliente, onSelecionarPo, poAtiva }) {
           onClick={() =>
             onSelecionarPo
               ? onSelecionarPo(poAtiva === g.po ? null : g.po)
-              : g.orcamentos.length === 1
-                ? navegar(`orcamentos/${g.orcamentos[0].id}`)
-                : navegar('orcamentos')
+              : abrirGrupo(g)
           }
         >
           <div className="linha-progresso-cab">
@@ -335,9 +333,7 @@ function CardOrcamentoPO({ g, nomeCliente, onSelecionarPo, poAtiva }) {
       onClick={() =>
         onSelecionarPo
           ? onSelecionarPo(ativa ? null : g.po)
-          : g.orcamentos.length === 1
-            ? navegar(`orcamentos/${g.orcamentos[0].id}`)
-            : navegar('orcamentos')
+          : abrirGrupo(g)
       }
     >
       <div className="card-po-cab">
@@ -431,7 +427,7 @@ function CardMO({ r, onSelecionarPo, poAtiva }) {
   return (
     <div
       className={`card-po${ativa ? ' ativa' : ''}`}
-      onClick={() => (onSelecionarPo ? onSelecionarPo(ativa ? null : r.po) : navegar('orcamentos'))}
+      onClick={() => (onSelecionarPo ? onSelecionarPo(ativa ? null : r.po) : (filtroInicial('orc_po', String(r.po)), navegar('orcamentos')))}
     >
       <div className="card-po-cab">
         <strong>PO {r.po}</strong>

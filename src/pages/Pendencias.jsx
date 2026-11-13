@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Pill } from '../components.jsx';
-import { filtrarPorCliente, pendencias, data, moeda0, api } from '../lib/util.js';
+import { filtrarPorCliente, pendencias, data, moeda0, api, filtroInicial } from '../lib/util.js';
 
 const LIMITE_ALERTA = 70; // % do M.O orçado a partir do qual já vale alertar
 
@@ -68,7 +68,7 @@ export default function Pendencias() {
         <div className="duas-col">
           <Bloco titulo="M.O aproximando ou acima do limite" vazio="Nenhuma PO com M.O perto do orçado." qtd={moAlerta.length}>
             {moAlerta.map((r) => (
-              <Linha key={r.po} onClick={() => navegar('orcamentos')}>
+              <Linha key={r.po} onClick={() => (filtroInicial('orc_po', String(r.po)), navegar('orcamentos'))}>
                 <div>
                   <strong>PO {r.po}</strong>
                   <div className="pequeno-txt muted">
