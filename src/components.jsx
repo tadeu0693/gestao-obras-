@@ -26,6 +26,7 @@ const P = {
   tarefas: 'M9 6h11M9 12h11M9 18h11M3.5 6l1.5 1.5L7 5M3.5 12l1.5 1.5L7 11M3.5 18l1.5 1.5L7 17',
   dashboard: 'M4 19V10M10 19V4M16 19v-7M22 19H2',
   pmo: 'M4 7h12l-3-3M20 17H8l3 3',
+  arquivo: 'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
 };
 export function Icone({ nome, tam = 18 }) {
   return (

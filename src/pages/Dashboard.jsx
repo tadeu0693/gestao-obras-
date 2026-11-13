@@ -108,7 +108,7 @@ export default function Dashboard() {
     for (const o of d.orcamentos) for (const i of o.itens || []) if (i.dataCompra && i.dataCompra >= corte) gastoSemana += pagoItem(i);
     const hoje = hojeISO();
     const limite = diasNaFrente(7);
-    const vencendoSemana = d.orcamentos.filter((o) => o.vencimento && o.vencimento >= hoje && o.vencimento <= limite && !['Encerrado', 'Perdido'].includes(o.status));
+    const vencendoSemana = d.orcamentos.filter((o) => o.vencimento && o.vencimento >= hoje && o.vencimento <= limite && !['Encerrado', 'Perdido', 'Cancelado'].includes(o.status));
     const proximosInicios = d.locais
       .filter((l) => l.status === 'Não iniciada' && l.inicioPrevisto && l.inicioPrevisto >= hoje)
       .sort((a, b) => a.inicioPrevisto.localeCompare(b.inicioPrevisto))

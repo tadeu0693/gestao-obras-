@@ -35,6 +35,7 @@ const NAV = [
   ['locais', 'Locais e obras', 'locais'],
   ['consolidado', 'Consolidado', 'consolidado'],
   ['clientes', 'Clientes', 'clientes'],
+  ['arquivo', 'Arquivo', 'arquivo'],
 ];
 
 function useRota() {
@@ -194,6 +195,7 @@ export default function App() {
   else if (pagina === 'clientes') conteudo = <Clientes />;
   else if (pagina === 'config') conteudo = <Config />;
   else if (pagina === 'pmo') conteudo = <Pmo />;
+  else if (pagina === 'arquivo') conteudo = <Orcamentos key="arquivo" arquivo />;
   else conteudo = <Painel />;
 
   return (

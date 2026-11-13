@@ -51,7 +51,10 @@ export const COR_STATUS = {
   Pausada: 'var(--vermelho)',
   Concluída: 'var(--verde)',
 };
-export const STATUS_ORC = ['Em análise', 'Aprovado', 'Em execução', 'Encerrado', 'Perdido'];
+export const STATUS_ORC = ['Em análise', 'Aprovado', 'Em execução', 'Encerrado', 'Perdido', 'Cancelado'];
+// Orçamentos nesses status saem das telas de trabalho e ficam só em "Arquivo"
+export const STATUS_ARQUIVO = ['Encerrado', 'Perdido', 'Cancelado'];
+export const arquivado = (o) => STATUS_ARQUIVO.includes(o?.status);
 
 // ---------- cálculos ----------
 export const custoItem = (i) => (Number(i.qtd) || 0) * (Number(i.custoUnit) || 0);
@@ -99,13 +102,21 @@ export function agruparPOs(dados) {
   return [...mapa.values()].sort((a, b) => String(a.po).localeCompare(String(b.po), 'pt-BR', { numeric: true }));
 }
 
-export function filtrarPorCliente(dados, clienteId) {
-  if (!clienteId) return dados;
-  return {
-    ...dados,
-    orcamentos: dados.orcamentos.filter((o) => o.clienteId === clienteId),
-    locais: dados.locais.filter((l) => l.clienteId === clienteId),
-  };
+export function filtrarPorCliente(dados, clienteId, { incluirArquivados = false } = {}) {
+  let orcamentos = clienteId ? dados.orcamentos.filter((o) => o.clienteId === clienteId) : dados.orcamentos;
+  let locais = clienteId ? dados.locais.filter((l) => l.clienteId === clienteId) : dados.locais;
+  if (!incluirArquivados) {
+    const arquivadoId = new Set(dados.orcamentos.filter(arquivado).map((o) => o.id));
+    // PO (por cliente) em que todos os orçamentos estão arquivados
+    const porPo = new Map();
+    for (const o of dados.orcamentos) {
+      const k = `${o.clienteId}|${o.po}`;
+      porPo.set(k, (porPo.get(k) ?? true) && arquivado(o));
+    }
+    orcamentos = orcamentos.filter((o) => !arquivado(o));
+    locais = locais.filter((l) => !arquivadoId.has(l.orcamentoId) && porPo.get(`${l.clienteId}|${l.po}`) !== true);
+  }
+  return { ...dados, orcamentos, locais };
 }
 
 // Gasto semanal a partir das datas de compra
@@ -184,7 +195,7 @@ export function pendencias(dados) {
   const locaisParados = dados.locais.filter((l) => l.status === 'Não iniciada' || l.status === 'Pausada');
 
   const orcamentosVencendo = dados.orcamentos
-    .filter((o) => o.vencimento && o.vencimento <= em30dias && !['Encerrado', 'Perdido'].includes(o.status))
+    .filter((o) => o.vencimento && o.vencimento <= em30dias && !arquivado(o))
     .map((o) => ({ ...o, vencido: o.vencimento < hoje }))
     .sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 

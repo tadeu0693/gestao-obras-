@@ -1,17 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Icone, MiniRegua } from '../components.jsx';
-import { filtrarPorCliente, totaisOrc, moeda0, pct, data, semAcento, uid, STATUS_ORC } from '../lib/util.js';
+import { filtrarPorCliente, totaisOrc, moeda0, pct, data, semAcento, uid, STATUS_ORC, STATUS_ARQUIVO, arquivado } from '../lib/util.js';
 
-export default function Orcamentos() {
+export default function Orcamentos({ arquivo = false }) {
   const { dados, clienteId, nomeCliente, salvar, podeEditar, toast } = useApp();
   const [busca, setBusca] = useState('');
   const [status, setStatus] = useState('');
-  const d = filtrarPorCliente(dados, clienteId);
+  const d = filtrarPorCliente(dados, clienteId, { incluirArquivados: true });
 
   const linhas = useMemo(() => {
     const q = semAcento(busca);
     return d.orcamentos
+      .filter((o) => arquivado(o) === arquivo)
       .filter((o) => !status || (o.status || 'Em análise') === status)
       .filter((o) => !q || semAcento(`${o.po} ${o.nome} ${nomeCliente(o.clienteId)} ${o.comercial}`).includes(q))
       .map((o) => ({ o, t: totaisOrc(o) }))
@@ -34,12 +35,16 @@ export default function Orcamentos() {
     <>
       <div className="topo">
         <div>
-          <h1>Orçamentos</h1>
-          <div className="sub">Cada proposta importada vira um orçamento, agrupado pela PO.</div>
+          <h1>{arquivo ? 'Arquivo' : 'Orçamentos'}</h1>
+          <div className="sub">
+            {arquivo
+              ? 'Orçamentos encerrados, perdidos ou cancelados. Não aparecem nas outras telas; mude o status para voltar.'
+              : 'Cada proposta importada vira um orçamento, agrupado pela PO. Encerrados, perdidos e cancelados vão para o Arquivo.'}
+          </div>
         </div>
         <div className="topo-acoes">
           <FiltroCliente />
-          {podeEditar && (
+          {podeEditar && !arquivo && (
             <>
               <button onClick={novo}>
                 <Icone nome="mais" /> Em branco
@@ -55,7 +60,7 @@ export default function Orcamentos() {
         <input type="search" placeholder="Buscar por PO, nome ou comercial" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
           <option value="">Todos os status</option>
-          {STATUS_ORC.map((s) => (
+          {STATUS_ORC.filter((s) => STATUS_ARQUIVO.includes(s) === arquivo).map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
@@ -116,7 +121,7 @@ export default function Orcamentos() {
             </table>
           </div>
         ) : (
-          <div className="vazio">Nenhum orçamento encontrado. Importe uma proposta para começar.</div>
+          <div className="vazio">{arquivo ? 'Nenhum orçamento arquivado.' : 'Nenhum orçamento encontrado. Importe uma proposta para começar.'}</div>
         )}
       </section>
     </>
