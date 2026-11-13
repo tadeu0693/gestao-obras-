@@ -6,9 +6,24 @@ import { filtrarPorCliente, pendencias, data, moeda0, api, filtroInicial } from 
 const LIMITE_ALERTA = 70; // % do M.O orçado a partir do qual já vale alertar
 
 export default function Pendencias() {
-  const { dados, clienteId, nomeCliente, recarregar, podeEditar } = useApp();
+  const { dados, clienteId, nomeCliente, recarregar, podeEditar, salvar, toast } = useApp();
   const d = filtrarPorCliente(dados, clienteId);
   const p = pendencias(d);
+
+  // Local com PO que só existe em orçamento de OUTRO cliente (ex.: cadastrado no cliente errado)
+  const clienteErrado = dados.locais
+    .filter((l) => l.po)
+    .map((l) => {
+      const mesmos = dados.orcamentos.filter((o) => String(o.po) === String(l.po));
+      if (!mesmos.length || mesmos.some((o) => o.clienteId === l.clienteId)) return null;
+      return { l, o: mesmos[0], clientes: [...new Set(mesmos.map((o) => o.clienteId))] };
+    })
+    .filter(Boolean)
+    .filter((x) => !clienteId || x.l.clienteId === clienteId || x.clientes.includes(clienteId));
+  const corrigirCliente = async ({ l, o }) => {
+    await salvar('locais', { ...l, clienteId: o.clienteId, orcamentoId: o.id });
+    toast(`Local "${l.nome}" movido para ${nomeCliente(o.clienteId)}`);
+  };
 
   const [mo, setMo] = useState(null); // null = ainda carregando/indisponível
   const buscarMo = () =>
@@ -60,6 +75,38 @@ export default function Pendencias() {
             {semLinhaMO.map((r) => `PO ${r.po} (${moeda0(r.custo)})`).join(' · ')}
           </p>
         </div>
+      )}
+
+      {clienteErrado.length > 0 && (
+        <section className="bloco" style={{ borderColor: 'var(--vermelho)' }}>
+          <div className="bloco-cab">
+            <h2>
+              Locais no cliente errado <span className="tag falta">{clienteErrado.length}</span>
+            </h2>
+          </div>
+          <p className="pequeno-txt">A PO do local pertence a um orçamento de outro cliente.</p>
+          <div className="lista-pendencias">
+            {clienteErrado.map((x) => (
+              <div key={x.l.id} className="linha-pendencia">
+                <div>
+                  <strong>PO {x.l.po}</strong> — {x.l.nome}
+                  <div className="pequeno-txt muted">
+                    Está em {nomeCliente(x.l.clienteId)} · orçamento da PO é de {x.clientes.map(nomeCliente).join(', ')}
+                  </div>
+                </div>
+                {podeEditar && x.clientes.length === 1 ? (
+                  <button className="pequeno primario" onClick={() => corrigirCliente(x)}>
+                    Mover para {nomeCliente(x.o.clienteId)}
+                  </button>
+                ) : (
+                  <button className="pequeno" onClick={() => navegar(`locais/${x.l.id}`)}>
+                    Abrir local
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {total === 0 ? (
