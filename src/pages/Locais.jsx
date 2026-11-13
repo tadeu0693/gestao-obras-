@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Campo, Gaveta, Icone, NumInput, Pill, StatusSelect } from '../components.jsx';
-import { filtrarPorCliente, semAcento, data, moeda0, uid, STATUS_LOCAL, exportarExcel, hojeISO, geocodificarEndereco } from '../lib/util.js';
+import { filtrarPorCliente, semAcento, data, moeda0, uid, STATUS_LOCAL, exportarExcel, hojeISO, geocodificarEndereco, filtroInicial } from '../lib/util.js';
 
 const NOVO = (clienteId) => ({
   id: uid(),
@@ -31,7 +31,7 @@ const totalCam = (c = {}) => Object.values(c).reduce((s, v) => s + (Number(v) ||
 export default function Locais({ abrirId }) {
   const { dados, clienteId, nomeCliente, salvar, podeEditar, toast } = useApp();
   const [busca, setBusca] = useState('');
-  const [fPO, setFPO] = useState('');
+  const [fPO, setFPO] = useState(() => filtroInicial('loc_po'));
   const [fReg, setFReg] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [agrupar, setAgrupar] = useState(true);
@@ -52,7 +52,7 @@ export default function Locais({ abrirId }) {
   const lista = useMemo(() => {
     const q = semAcento(busca);
     return d.locais
-      .filter((l) => (!fPO || String(l.po) === fPO) && (!fReg || l.regiao === fReg) && (!fStatus || (l.status || 'Não iniciada') === fStatus))
+      .filter((l) => (!fPO || (fPO === '__sem' ? !l.po : String(l.po) === fPO)) && (!fReg || l.regiao === fReg) && (!fStatus || (l.status || 'Não iniciada') === fStatus))
       .filter((l) => !q || semAcento(`${l.nome} ${l.endereco} ${l.equipe} ${l.po}`).includes(q))
       .sort((a, b) => (a.regiao || '').localeCompare(b.regiao || '') || a.nome.localeCompare(b.nome));
   }, [d, busca, fPO, fReg, fStatus]);
@@ -169,6 +169,7 @@ export default function Locais({ abrirId }) {
         <input type="search" placeholder="Buscar local, endereço ou equipe" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <select value={fPO} onChange={(e) => setFPO(e.target.value)} aria-label="PO">
           <option value="">Todas as POs</option>
+          <option value="__sem">Sem PO</option>
           {pos.map((p) => (
             <option key={p}>{p}</option>
           ))}

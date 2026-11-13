@@ -1,23 +1,25 @@
 import { useMemo, useState } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Icone, MiniRegua } from '../components.jsx';
-import { filtrarPorCliente, totaisOrc, moeda0, pct, data, semAcento, uid, STATUS_ORC, STATUS_ARQUIVO, arquivado } from '../lib/util.js';
+import { filtrarPorCliente, totaisOrc, moeda0, pct, data, semAcento, uid, STATUS_ORC, STATUS_ARQUIVO, arquivado, filtroInicial } from '../lib/util.js';
 
 export default function Orcamentos({ arquivo = false }) {
   const { dados, clienteId, nomeCliente, salvar, podeEditar, toast } = useApp();
   const [busca, setBusca] = useState('');
   const [status, setStatus] = useState('');
+  const [poFixa, setPoFixa] = useState(() => filtroInicial('orc_po'));
   const d = filtrarPorCliente(dados, clienteId, { incluirArquivados: true });
 
   const linhas = useMemo(() => {
     const q = semAcento(busca);
     return d.orcamentos
       .filter((o) => arquivado(o) === arquivo)
+      .filter((o) => !poFixa || (poFixa === '__sem' ? !o.po : String(o.po) === poFixa))
       .filter((o) => !status || (o.status || 'Em análise') === status)
       .filter((o) => !q || semAcento(`${o.po} ${o.nome} ${nomeCliente(o.clienteId)} ${o.comercial}`).includes(q))
       .map((o) => ({ o, t: totaisOrc(o) }))
       .sort((a, b) => String(a.o.po).localeCompare(String(b.o.po), 'pt-BR', { numeric: true }) || a.o.nome.localeCompare(b.o.nome));
-  }, [d, busca, status, nomeCliente]);
+  }, [d, busca, status, nomeCliente, poFixa, arquivo]);
 
   const novo = async () => {
     const cid = clienteId || dados.clientes[0]?.id;
@@ -58,6 +60,11 @@ export default function Orcamentos({ arquivo = false }) {
       </div>
       <div className="filtros">
         <input type="search" placeholder="Buscar por PO, nome ou comercial" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        {poFixa && (
+          <button className="pequeno" onClick={() => setPoFixa('')} title="Remover filtro">
+            {poFixa === '__sem' ? 'Sem PO' : `PO ${poFixa}`} ✕
+          </button>
+        )}
         <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
           <option value="">Todos os status</option>
           {STATUS_ORC.filter((s) => STATUS_ARQUIVO.includes(s) === arquivo).map((s) => (

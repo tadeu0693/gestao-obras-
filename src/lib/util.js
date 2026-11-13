@@ -29,6 +29,17 @@ export async function geocodificarEndereco(endereco) {
     return null;
   }
 }
+// Filtro passado de uma tela para outra (ex.: clicar numa PO no Painel)
+export const filtroInicial = (chave, valor) => {
+  try {
+    if (valor !== undefined) return sessionStorage.setItem('filtro_' + chave, valor);
+    const v = sessionStorage.getItem('filtro_' + chave);
+    sessionStorage.removeItem('filtro_' + chave);
+    return v || '';
+  } catch {
+    return '';
+  }
+};
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 export const parseNum = (s) => {

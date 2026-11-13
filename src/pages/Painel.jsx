@@ -1,7 +1,21 @@
 import { useMemo } from 'react';
 import { useApp, FiltroCliente, navegar } from '../App.jsx';
 import { Regua, MiniRegua, Pill, GraficoSemanal, Totais } from '../components.jsx';
-import { agruparPOs, filtrarPorCliente, totaisOrc, serieSemanal, moeda0, pct, data, STATUS_LOCAL, COR_STATUS, hojeISO } from '../lib/util.js';
+import { agruparPOs, filtroInicial, filtrarPorCliente, totaisOrc, serieSemanal, moeda0, pct, data, STATUS_LOCAL, COR_STATUS, hojeISO } from '../lib/util.js';
+
+// Abre o que está por trás da linha: 1 orçamento → detalhe; vários → lista filtrada pela PO;
+// só locais (ex.: "sem PO") → Locais filtrado
+function abrirGrupo(g) {
+  const po = g.po === 'sem PO' ? '' : String(g.po);
+  if (g.orcamentos.length === 1) return navegar(`orcamentos/${g.orcamentos[0].id}`);
+  if (g.orcamentos.length > 1) {
+    filtroInicial('orc_po', po || '__sem');
+    return navegar('orcamentos');
+  }
+  if (g.locais.length === 1) return navegar(`locais/${g.locais[0].id}`);
+  filtroInicial('loc_po', po || '__sem');
+  navegar('locais');
+}
 
 export default function Painel() {
   const { dados, clienteId, nomeCliente } = useApp();
@@ -136,7 +150,7 @@ export default function Painel() {
             </thead>
             <tbody>
               {pos.map((g) => (
-                <tr key={g.clienteId + g.po} className="clicavel" onClick={() => (g.orcamentos.length === 1 ? navegar(`orcamentos/${g.orcamentos[0].id}`) : navegar('orcamentos'))}>
+                <tr key={g.clienteId + g.po} className="clicavel" onClick={() => abrirGrupo(g)}>
                   <td>
                     <strong>{g.po}</strong>
                   </td>
