@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp, navegar } from '../App.jsx';
 import { Campo, Icone, ItensTabela } from '../components.jsx';
 import { parseFile } from '../lib/parseProposta.js';
-import { moeda, semAcento, uid, custoItem, STATUS_ORC } from '../lib/util.js';
+import { moeda, semAcento, uid, custoItem, STATUS_ORC, api } from '../lib/util.js';
 
 const chaveItem = (i) => (i.codigo ? `c:${i.codigo}` : `d:${semAcento(i.descricao)}|${semAcento(i.modelo)}`);
 
@@ -12,6 +12,17 @@ export default function Importar() {
   const [atualId, setAtualId] = useState(null);
   const [sobre, setSobre] = useState(false);
   const inputRef = useRef();
+  // cliente de cada PO segundo o último retrato do PMO (para nomear cliente novo)
+  const pmoClientes = useRef({});
+  useEffect(() => {
+    api('pmo')
+      .then((r) => {
+        const m = {};
+        for (const p of r.snapshot?.projetos || []) if (p.po && p.cliente) m[p.po] = p.cliente;
+        pmoClientes.current = m;
+      })
+      .catch(() => {});
+  }, []);
 
   const receber = async (files) => {
     const novos = [...files].filter((f) => /\.(xlsx|xlsm|xls)$/i.test(f.name));
@@ -22,7 +33,7 @@ export default function Importar() {
       try {
         const r = await parseFile(e.file);
         if (!r.ok) throw new Error(r.error);
-        const rascunho = montarRascunho(r, dados);
+        const rascunho = montarRascunho(r, dados, pmoClientes.current);
         setFila((x) => x.map((y) => (y.id === e.id ? { ...y, status: 'pronto', r, rascunho } : y)));
         setAtualId((a) => a || e.id);
       } catch (err) {
@@ -139,10 +150,14 @@ function resolver(rs, dados) {
   return { ...rs, clienteRef, _pendente: false, duplicadoId: dup?.id || null, modo: dup ? (rs._escolheu ? rs.modo : 'aditivo') : 'novo', localExistenteId: loc?.id || null };
 }
 
-function montarRascunho(r, dados) {
+function montarRascunho(r, dados, pmoClientes = {}) {
   const o = r.orcamento;
-  const cli = dados.clientes.find((c) => semAcento(c.nome) === semAcento(o.clienteNome));
-  const clienteRef = cli ? cli.id : o.clienteNome ? `novo:${o.clienteNome}` : dados.clientes[0]?.id || 'novo:';
+  const poNum = String(o.po || '').match(/\d{3,}/)?.[0]?.replace(/^0+/, '');
+  // Sem cliente na planilha: usa o cliente do PMO para a PO; senão cria um cliente "a validar".
+  // Nunca joga no primeiro cliente da lista (misturava projetos de clientes diferentes).
+  const nomeCliente = o.clienteNome || (poNum && pmoClientes[poNum]) || `A validar - PO ${o.po || 'sem PO'}`;
+  const cli = dados.clientes.find((c) => semAcento(c.nome) === semAcento(nomeCliente));
+  const clienteRef = cli ? cli.id : `novo:${nomeCliente}`;
   const dup = cli && dados.orcamentos.find((x) => x.clienteId === cli.id && String(x.po) === String(o.po) && o.po);
   const localExistente =
     cli && r.localSugerido && dados.locais.find((l) => l.clienteId === cli.id && String(l.po) === String(o.po) && semAcento(l.nome) === semAcento(r.localSugerido));
@@ -165,7 +180,7 @@ async function gravar(rsOriginal, dados, salvar) {
   let clienteId = rs.clienteRef;
   if (clienteId.startsWith('novo:')) {
     const nome = clienteId.slice(5).trim() || 'Cliente sem nome';
-    const [c] = await salvar('clientes', { id: uid(), nome });
+    const [c] = await salvar('clientes', { id: uid(), nome, aValidar: true });
     clienteId = c.id;
   }
   // 2. orçamento

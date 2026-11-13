@@ -8,6 +8,20 @@ export default function Clientes() {
   const [nome, setNome] = useState('');
   const [editId, setEditId] = useState(null);
   const [editNome, setEditNome] = useState('');
+  const [mesclarId, setMesclarId] = useState(null);
+
+  // Move orçamentos e locais deste cliente para outro e remove o cliente
+  const mesclar = async (origem, destinoId) => {
+    const destino = dados.clientes.find((x) => x.id === destinoId);
+    if (!destino || !confirm(`Mover tudo de "${origem.nome}" para "${destino.nome}" e excluir "${origem.nome}"?`)) return;
+    const orcs = dados.orcamentos.filter((o) => o.clienteId === origem.id).map((o) => ({ ...o, clienteId: destinoId }));
+    const locs = dados.locais.filter((l) => l.clienteId === origem.id).map((l) => ({ ...l, clienteId: destinoId }));
+    if (orcs.length) await salvar('orcamentos', orcs);
+    if (locs.length) await salvar('locais', locs);
+    await excluir('clientes', origem.id);
+    setMesclarId(null);
+    toast(`${orcs.length} orçamento(s) e ${locs.length} local(is) movidos para ${destino.nome}`);
+  };
 
   const adicionar = async () => {
     const n = nome.trim();
@@ -34,7 +48,7 @@ export default function Clientes() {
       <div className="topo">
         <div>
           <h1>Clientes</h1>
-          <div className="sub">Clientes novos também são criados automaticamente ao importar uma proposta.</div>
+          <div className="sub">Clientes novos são criados automaticamente ao importar uma proposta e ficam “a validar”: valide, renomeie ou mova para um cliente existente.</div>
         </div>
       </div>
       {podeEditar && (
@@ -78,7 +92,27 @@ export default function Clientes() {
                         onBlur={() => setEditId(null)}
                       />
                     ) : (
-                      <strong>{c.nome}</strong>
+                      <>
+                        <strong>{c.nome}</strong> {c.aValidar && <span className="tag sobra">a validar</span>}
+                      </>
+                    )}
+                    {mesclarId === c.id && (
+                      <div style={{ marginTop: 6 }}>
+                        <select defaultValue="" onChange={(e) => e.target.value && mesclar(c, e.target.value)} style={{ width: 'auto' }}>
+                          <option value="">Mover tudo para…</option>
+                          {dados.clientes
+                            .filter((x) => x.id !== c.id)
+                            .sort((a, b) => a.nome.localeCompare(b.nome))
+                            .map((x) => (
+                              <option key={x.id} value={x.id}>
+                                {x.nome}
+                              </option>
+                            ))}
+                        </select>{' '}
+                        <button className="pequeno" onClick={() => setMesclarId(null)}>
+                          Cancelar
+                        </button>
+                      </div>
                     )}
                   </td>
                   <td className="num">{pos}</td>
@@ -98,6 +132,16 @@ export default function Clientes() {
                     </button>{' '}
                     {podeEditar && (
                       <>
+                        {c.aValidar && (
+                          <>
+                            <button className="pequeno primario" onClick={() => salvar('clientes', { ...c, aValidar: false })}>
+                              Validar
+                            </button>{' '}
+                          </>
+                        )}
+                        <button className="pequeno" onClick={() => setMesclarId(c.id)}>
+                          Mover para…
+                        </button>{' '}
                         <button
                           className="pequeno"
                           onClick={() => {
