@@ -25,6 +25,7 @@ const P = {
   'importar-sap': 'M12 15V4M8 8l4-4 4 4M4 13v4a2 2 0 0 0 2 2h4M20 13v4a2 2 0 0 0-2 2h-4',
   tarefas: 'M9 6h11M9 12h11M9 18h11M3.5 6l1.5 1.5L7 5M3.5 12l1.5 1.5L7 11M3.5 18l1.5 1.5L7 17',
   dashboard: 'M4 19V10M10 19V4M16 19v-7M22 19H2',
+  pmo: 'M4 7h12l-3-3M20 17H8l3 3',
 };
 export function Icone({ nome, tam = 18 }) {
   return (

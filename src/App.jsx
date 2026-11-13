@@ -15,6 +15,7 @@ import Pendencias from './pages/Pendencias.jsx';
 import Tarefas from './pages/Tarefas.jsx';
 import Clientes from './pages/Clientes.jsx';
 import Config from './pages/Config.jsx';
+import Pmo, { PmoReceber } from './pages/Pmo.jsx';
 
 const Ctx = createContext(null);
 export const useApp = () => useContext(Ctx);
@@ -30,6 +31,7 @@ const NAV = [
   ['importar', 'Importar proposta', 'importar'],
   ['importar-sap', 'Importar SAP', 'importar-sap'],
   ['rastreamento-sc', 'Rastreamento SC', 'rastreamento-sc'],
+  ['pmo', 'PMO Gitel', 'pmo'],
   ['locais', 'Locais e obras', 'locais'],
   ['consolidado', 'Consolidado', 'consolidado'],
   ['clientes', 'Clientes', 'clientes'],
@@ -164,12 +166,18 @@ export default function App() {
         pendente={pendente}
         aoEntrar={(u) => {
           setUsuario(u);
-          navegar('painel');
+          if (!window.location.hash.startsWith('#/pmo/receber')) navegar('painel');
         }}
       />
     );
 
   const [pagina, param] = rota;
+  if (pagina === 'pmo' && param === 'receber')
+    return (
+      <Ctx.Provider value={ctx}>
+        <PmoReceber />
+      </Ctx.Provider>
+    );
   const somenteDashboard = usuario.papel === 'dashboard';
   let conteudo;
   if (somenteDashboard) conteudo = <Dashboard />;
@@ -185,6 +193,7 @@ export default function App() {
   else if (pagina === 'consolidado') conteudo = <Consolidado />;
   else if (pagina === 'clientes') conteudo = <Clientes />;
   else if (pagina === 'config') conteudo = <Config />;
+  else if (pagina === 'pmo') conteudo = <Pmo />;
   else conteudo = <Painel />;
 
   return (
